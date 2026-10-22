@@ -1,0 +1,27 @@
+/* ===========================================================================
+   ARCADE BUILD — the only stylesheet that is not in the browser version.
+
+   Masonic Lodge is a caps-only face, so thirteen rules in this game set it
+   without ever saying text-transform: uppercase. They did not need to. Rye,
+   the open-licence face that stands in for it here, has real lowercase, so
+   every one of those rules suddenly rendered as typed -- the wordmark came
+   out "Benighted" instead of "BENIGHTED".
+
+   Rather than edit thirteen rules across five files and have the arcade build
+   drift from the browser one, the assumption is restated here, loaded last.
+   If the display face is ever swapped for another caps-only one, delete this
+   file and nothing else changes.
+   ========================================================================= */
+#start h1, #start .days,
+#day .n,
+#talk .who, #talk .choices b, #talk .esc b,
+#prompt .pill span, #prompt .name,
+#end.ending h1, #end.ending .again b,
+#tut h2, #tut button, #tut .ladder figcaption{
+  text-transform:uppercase;
+}
+
+/* Rye carries more ink than Masonic Lodge at the same size, and the wordmark
+   is set to fill the width of the title screen. A hair tighter so it does not
+   crowd the edges of a 1280-wide cabinet window. */
+#start h1{ font-size:clamp(40px,8.4vw,200px); letter-spacing:.005em; }

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Benighted</title>
+<link rel="stylesheet" href="v2.css">
+<link rel="stylesheet" href="v2-chars.css">
+<link rel="stylesheet" href="v2-end.css">
+<link rel="stylesheet" href="v2-notes.css">
+<link rel="stylesheet" href="v2-life.css">
+<link rel="stylesheet" href="v2-mask.css">
+  <link rel="stylesheet" href="v2-frame.css">
+  <link rel="stylesheet" href="v2-brief.css">
+  <link rel="stylesheet" href="v2-onboard.css">
+  <link rel="stylesheet" href="v2-start.css">
+  <link rel="stylesheet" href="v2-tutorial.css">
+  <link rel="stylesheet" href="v2-book.css">
+  <link rel="stylesheet" href="v2-day.css">
+  <link rel="stylesheet" href="v2-pause.css">
+  <!-- last, so it can restate what a caps-only font used to do -->
+  <link rel="stylesheet" href="arcade.css">
+  <!-- THE TYPE SHIPS WITH THE GAME. This was a stylesheet from Adobe Fonts
+       over the network, which an offline arcade cannot load and which Adobe's
+       licence will not let us copy into the repository. Two open-licence
+       faces stand in; see fonts/fonts.css. -->
+  <link rel="stylesheet" href="fonts/fonts.css">
+</head>
+<body>
+
+<!-- Which fork am I looking at. Six builds that look identical at a glance is
+     exactly how a playtest session turns into an argument about what you just
+     played. -->
+<!-- The title, not playtest chrome. This used to read "J · one of them is not
+     a person · ← all six", which was for telling six parallel variant builds
+     apart during testing and linked back to the variant picker. Variant J is
+     the game now, so the letter, the subtitle and the back-link are gone. -->
+<div id="brand">
+  <span class="t">Benighted</span>
+</div>
+
+<div id="stage"></div>
+
+<!-- The light. Canvases, not gradient divs: see the long note in
+     paintLight(). Two of them so #glowfx can keep its screen blend. -->
+<canvas id="glowfx"></canvas>
+<canvas id="darkfx"></canvas>
+<div id="prompt"></div>
+<div id="notes" hidden></div>
+<div id="book" hidden></div>
+
+<!-- Loudon's NewDay.svg, shown at the top of every day; see v2-day.js -->
+<div id="day" hidden aria-live="polite"></div>
+<div id="talk" hidden></div>
+<div id="intro" hidden></div>
+
+<!-- The premise and the keys; see v2-brief.js. Shown on load, reopened by ? -->
+<div id="brief" hidden role="dialog" aria-modal="true" aria-label="How to play"></div>
+
+<!-- The other four onboarding methods in the bake-off; see v2-onboard.js.
+     Only ever one of these is live, picked by ?onboard= -->
+<div id="ob" hidden role="dialog" aria-modal="true" aria-label="How to play"></div>
+<div id="ledger" hidden role="dialog" aria-modal="true" aria-label="Your notebook"></div>
+
+<!-- The chosen flow: the story on black, then the rules over the valley. -->
+<!-- Loudon's title screen, rebuilt from UI/My UI/StartingScreen.svg -->
+<div id="start" hidden></div>
+
+<div id="pro" hidden role="dialog" aria-modal="true" aria-label="Prologue"></div>
+<div id="panel" hidden role="dialog" aria-modal="true" aria-label="How to play"></div>
+
+<!-- Loudon's three tutorial frames; see v2-tutorial.js -->
+<div id="tut" hidden role="dialog" aria-modal="true" aria-label="How to play"></div>
+
+<div id="line"></div>
+
+<!-- THE BOTTOM ROW IS GONE, AND SO IS THE KEY LEGEND BEFORE IT.
+
+     The legend read "← → walk · E look · TAB what you know · ` numbers", which
+     was the whole of the game's instruction back when there wasn't any. The
+     tutorial teaches all four properly now.
+
+     The four buttons went next. They are controls rather than instruction, but
+     they were still four pieces of furniture sitting in the bottom of every
+     frame of a game about what you can and cannot see. They live in the pause
+     menu now, on P, with their ids unchanged so every handler already bound
+     to them still works. -->
+<div id="pause" hidden role="dialog" aria-modal="true" aria-label="Paused">
+  <div class="pause__inner">
+    <p class="pause__title">Paused</p>
+    <div class="pause__menu">
+      <button id="resume"  class="pause__item">Resume</button>
+      <button id="help"    class="pause__item">How to play</button>
+      <button id="mute"    class="pause__item">Mute</button>
+      <button id="fs"      class="pause__item">Fullscreen</button>
+      <button id="restart" class="pause__item">Restart</button>
+    </div>
+    <p class="pause__hint">P</p>
+  </div>
+</div>
+
+<div id="debug"></div>
+<div id="end" role="status" aria-live="polite"></div>
+
+<!-- first, so every handler below can ask it what to swallow -->
+<script src="arcade-keys.js"></script>
+<script src="v2-data.js"></script>
+<script src="v2-talk.js"></script>
+<script src="v2-life.js"></script>
+<script src="v2-mask.js"></script>
+<script src="v2-intro.js"></script>
+<script src="v2-scene.js"></script>
+<script src="v2-game.js"></script>
+<script src="v2-audio.js"></script>
+<script src="v2-book.js"></script>
+<script src="v2-day.js"></script>
+<script src="v2-pause.js"></script>
+<script src="v2-tutorial.js"></script>
+<script src="v2-start.js"></script>
+<script src="v2-onboard.js"></script>
+<script src="v2-brief.js"></script>
+<script>
+  /* The debug readout, and a real frame counter in it.
+
+     Frame time is measured on the actual machine the game is running on,
+     which is the only place the number means anything: a laptop on battery,
+     an external display at a different resolution and a projector are three
+     different answers. `worst` is the slowest frame in the last second,
+     because an average of 60 hides the one hitch you can see. */
+  let _fn = 0, _fsum = 0, _fworst = 0, _flast = performance.now(), _fps = 0, _fw = 0;
+  /* Only while the readout is actually up. A frame counter that runs forever
+     is a second rAF callback on every frame of a game whose whole problem is
+     how much happens per frame. */
+  (function tick(t) {
+    requestAnimationFrame(tick);
+    if (!document.body.classList.contains('debug')) { _flast = t; return; }
+    const d = t - _flast; _flast = t;
+    if (d > 0 && d < 1000) { _fn++; _fsum += d; if (d > _fworst) _fworst = d; }
+    if (_fsum >= 1000) { _fps = Math.round(1000 / (_fsum / _fn)); _fw = Math.round(_fworst);
+                         _fn = 0; _fsum = 0; _fworst = 0; }
+  })(performance.now());
+
+  setInterval(() => {
+    if (!window.S) return;
+    document.getElementById('debug').textContent =
+      `${_fps}fps worst ${_fw}ms  ·  ` +
+      `day ${S.day}  daylight ${S.daylight.toFixed(1)}  x ${S.x | 0}  ` +
+      `scene ${S.at}  parts ${S.parts.length}/3  threat ${S.threat} ` +
+      `(${THREAT.SIGHT[S.threat] || 'offstage'})` + (window.debugExtra ? '  ' + debugExtra() : '');
+  }, 120);
+</script>
+</body>
+</html>

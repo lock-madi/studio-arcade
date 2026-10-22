@@ -1,0 +1,47 @@
+/* ===========================================================================
+   THE TYPE, CARRIED WITH THE GAME.
+
+   The browser build of Benighted loads Masonic Lodge and Alverata Irregular
+   from Adobe Fonts over the network. The arcade runs with no internet, and
+   Adobe's licence does not allow their font files to be copied into a public
+   repository, so neither the link nor the files can come along.
+
+   These two are open licence (SIL OFL 1.1), downloaded from Google Fonts and
+   sitting in this folder, so the game carries its own typography and needs
+   nothing from the network:
+
+     Rye        for display -- the wordmark, headings, prompts, endings.
+                A Victorian woodtype with the same heavy, slightly hand-cut
+                caps Masonic Lodge has.
+     Alegreya   for everything anybody says. A humanist book face, which is
+                what Alverata Irregular is; the irregularity is gentler.
+
+   SWAPPING THEM is two lines: drop a .woff2 in here and change the src and
+   the family name below. Everything else in the game reads these two names
+   through the --disp and --text variables.
+   ========================================================================= */
+@font-face{
+  font-family:"masonic-lodge";   /* the game's own name for its display face */
+  src:url("rye-400.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:block;
+}
+@font-face{
+  font-family:"alverata-irregular";          /* and for its text face */
+  src:url("alegreya-400.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:block;
+}
+@font-face{
+  font-family:"alverata-irregular";
+  src:url("alegreya-500.woff2") format("woff2");
+  font-weight:500; font-style:normal; font-display:block;
+}
+@font-face{
+  font-family:"alverata-irregular";
+  src:url("alegreya-700.woff2") format("woff2");
+  font-weight:600 700; font-style:normal; font-display:block;
+}
+@font-face{
+  font-family:"alverata-irregular";
+  src:url("alegreya-400i.woff2") format("woff2");
+  font-weight:400; font-style:italic; font-display:block;
+}

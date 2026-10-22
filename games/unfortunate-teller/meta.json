@@ -2,7 +2,14 @@
   "title": "Unfortunate Teller",
   "student": "Madi Lock",
   "tag": "Narrative",
-  "input": ["mouse", "keyboard"],
-  "devices": ["desktop"],
+  "input": [
+    "mouse",
+    "keyboard"
+  ],
+  "devices": [
+    "desktop"
+  ],
+  "designedFor": "desktop",
+  "orientation": "landscape",
   "instructions": "Click to ask each client questions, guess their element, pick what each tarot card means, then choose what to tell them.\nYour choices change what happens next. Press P to pause."
 }

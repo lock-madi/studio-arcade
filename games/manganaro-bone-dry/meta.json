@@ -1,0 +1,8 @@
+{
+  "title": "Bone Dry",
+  "student": "Sicily Manganaro",
+  "tag": "Arcade",
+  "input": ["mouse", "touch"],
+  "devices": ["desktop", "tablet", "phone"],
+  "instructions": "Tap a customer, then START ORDER.\nPick bottles, hold to pour, then add the garnish.\nServe as many drinks as you can before the 5:00 shift ends."
+}

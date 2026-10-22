@@ -221,6 +221,10 @@ def check_game(folder, slug):
                     problems += 1
                 elif isinstance(meta.get("devices"), list) and designed not in meta["devices"]:
                     r.warn(f'"designedFor" is "{designed}" but "devices" doesn\'t include it, so the game won\'t show there')
+            orient = meta.get("orientation")
+            if orient is not None and orient not in ("landscape", "portrait"):
+                r.fail('meta.json "orientation" must be "landscape" or "portrait"')
+                problems += 1
             if isinstance(meta.get("title"), str) and len(meta["title"]) > 30:
                 r.warn(f'title is {len(meta["title"])} characters; it may be cut off (30 max)')
             if not problems:
@@ -351,6 +355,8 @@ def build_games_block(reports):
                 parts.append(f"    {key}: {json.dumps(m[key])}")
         if m.get("designedFor") in VALID_DEVICES:
             parts.append(f"    designedFor: {js_string(m['designedFor'])}")
+        if m.get("orientation") in ("landscape", "portrait"):
+            parts.append(f"    orientation: {js_string(m['orientation'])}")
         entries.append("  {\n" + ",\n".join(parts) + "\n  }")
     lines.append(",\n".join(entries))
     lines.append("];")

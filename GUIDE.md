@@ -67,7 +67,7 @@ Requirements:
 6. Don't use the Escape key for anything. Use P for pause.
 7. No alert(), confirm(), prompt() or window.open().
 8. If the game saves progress or high scores, use localStorage.
-9. Also write a meta.json file in exactly this format, filling in the title, controls, devices and the one device it plays best on (designedFor) for this game (leave "student" for me to fill in):
+9. Also write a meta.json file in exactly this format, filling in the title, controls, devices the one device it plays best on (designedFor) and whether it needs a landscape or portrait screen (orientation) for this game (leave "student" for me to fill in):
 {
   "title": "",
   "student": "YOUR NAME",
@@ -75,6 +75,7 @@ Requirements:
   "input": ["keyboard", "mouse", "touch"],
   "devices": ["desktop", "tablet"],
   "designedFor": "desktop",
+  "orientation": "landscape",
   "instructions": "Line one.\nLine two."
 }
 10. Give me every final file in full, and list where each one goes in the folder.
@@ -229,6 +230,7 @@ This small text file tells the arcade your game's title, your name and how to pl
 | `input` | Every input the game needs, from: `"keyboard"`, `"mouse"`, `"touch"`, `"gamepad"` | List all that apply |
 | `devices` | The devices your game is built for, from: `"desktop"` (laptop), `"tablet"` (iPad), `"phone"`. If it works on all of them, list all three | List all that apply |
 | `designedFor` | The ONE device your game plays best on: `"desktop"`, `"tablet"` or `"phone"`. It shows on your card as a Desktop, Tablet or Mobile tag. Optional | One value |
+| `orientation` | `"landscape"` (wide) or `"portrait"` (tall), if your game only works one way. Phones and tablets held the wrong way get a "turn your device" message. Optional | One value |
 | `instructions` | The controls and the goal, shown in the arcade's How to Play box. `\n` starts a new line | 3 short lines |
 
 Keep the double quotes and commas exactly as in the template, with no comma after the last line. If you used the "Built with Claude" prompt, Claude has already written this file; just add your name. The checker in Step 4 tells you if there's a typo.

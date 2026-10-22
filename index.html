@@ -343,6 +343,23 @@
   .confirm-actions .btn-exit { color: var(--accent-ink); background: var(--accent); border-color: var(--bg); }
   .confirm-hint { margin: 14px 0 0; text-align: center; font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #6d6a78; }
 
+  /* Rotate-your-device prompt (touch devices only) */
+  .rotate {
+    position: absolute; inset: 0; z-index: 4;
+    display: grid; place-items: center; text-align: center;
+    background: var(--bg); color: var(--ink); padding: 24px;
+  }
+  .rotate[hidden] { display: none; }
+  .rotate-inner { max-width: 360px; display: grid; justify-items: center; gap: 14px; }
+  .rotate-icon { width: 84px; height: 84px; color: var(--accent); }
+  .rotate-icon .device { transform-origin: 32px 32px; animation: turn 2.2s cubic-bezier(.6,0,.3,1) infinite; }
+  .rotate[data-want="portrait"] .rotate-icon .device { animation-name: turn-back; }
+  @keyframes turn { 0%, 25% { transform: rotate(0deg); } 55%, 100% { transform: rotate(-90deg); } }
+  @keyframes turn-back { 0%, 25% { transform: rotate(-90deg); } 55%, 100% { transform: rotate(0deg); } }
+  .rotate h2 { font-family: var(--display); font-weight: 900; font-size: 30px; letter-spacing: -0.03em; line-height: 1.05; margin: 0; }
+  .rotate p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.45; }
+  .rotate .btn { margin-top: 8px; }
+
   .stage { position: relative; background: #000; }
   .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; }
 
@@ -415,6 +432,16 @@
     </div>
   </div>
   <div class="stage" id="stage">
+    <div class="rotate" id="rotate" role="dialog" aria-labelledby="rotate-title" hidden>
+      <div class="rotate-inner">
+        <svg class="rotate-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <g class="device"><rect x="21" y="8" width="22" height="48" rx="5"/><path d="M29 49h6"/></g>
+        </svg>
+        <h2 id="rotate-title">Turn your device sideways</h2>
+        <p id="rotate-text">This game plays best in landscape.</p>
+        <button class="btn" id="rotate-skip" type="button">Play anyway</button>
+      </div>
+    </div>
     <div class="confirm" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text" hidden>
       <div class="confirm-card">
         <h2 id="confirm-title">Leave this game?</h2>
@@ -474,6 +501,9 @@
                   Mobile) at the right of the card's tag row. It doesn't hide
                   the game anywhere; "devices" does that.
                   Change the pill wording in CONFIG.designedForLabels.
+     orientation  optional: "landscape" or "portrait". On a phone or tablet held
+                  the other way, opening the game shows "Turn your device
+                  sideways/upright" until it's rotated (or "Play anyway").
 
    PREVIEW ANOTHER DEVICE: add ?device=tablet to the address, e.g.
      http://localhost:8080/?device=tablet   (also: desktop, phone, all)
@@ -606,6 +636,7 @@ const CONFIG = {
   idleMinutes: 3,                              // auto-return to menu after this much inactivity
   idleWarningSeconds: 15,                      // countdown shown before auto-exit (0 = none)
   confirmExit: true,                           // ask "Leave this game?" before exiting (false = exit at once)
+  rotatePrompt: true,                          // on phones/tablets, ask to rotate when a game's "orientation" doesn't match
   showSaveNote: true,                          // "Progress isn't saved" line in the How to Play box
   filterByDevice: true,                        // false = ignore "devices" and show every game
   showOtherDeviceNote: true,                   // "+2 more games on other devices in the room"
@@ -627,6 +658,8 @@ const CONFIG = {
   const WARN_MS = Math.min(CONFIG.idleWarningSeconds * 1000, IDLE_MS);
   const ACTIVITY_EVENTS = ["pointerdown", "pointermove", "mousedown", "mousemove", "keydown", "touchstart", "touchmove", "wheel"];
   const isTouchDevice = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+  // Real touch device (phone or tablet, including iPads that report as a Mac), ignoring ?device=
+  const ON_TOUCH = isTouchDevice || (navigator.maxTouchPoints > 1 && !window.matchMedia("(hover: hover) and (pointer: fine)").matches);
   const isFileMode = location.protocol === "file:";
 
   /* ---------- Device detection ----------
@@ -810,14 +843,47 @@ const CONFIG = {
     main.inert = true;
     document.body.classList.add("locked");
 
-    // Show controls briefly on launch, then tuck them away.
-    setHelp(true);
-    clearTimeout(helpTimer);
-    helpTimer = setTimeout(() => setHelp(false), 6000);
+    // Ask to rotate first if needed; otherwise show controls briefly, then tuck them away.
+    setupRotate(game);
+    if (rotateBox.hidden) showHelpBriefly();
 
     resetIdle(true);
     setTimeout(() => frame && frame.focus(), 60);
   }
+
+  function showHelpBriefly() {
+    setHelp(true);
+    clearTimeout(helpTimer);
+    helpTimer = setTimeout(() => setHelp(false), 6000);
+  }
+
+  /* ---------- Rotate prompt ---------- */
+  const rotateBox = $("rotate");
+  const PORTRAIT_MQ = window.matchMedia("(orientation: portrait)");
+  let rotateWant = null;
+  function orientationOk() { return rotateWant === "portrait" ? PORTRAIT_MQ.matches : !PORTRAIT_MQ.matches; }
+  function setupRotate(game) {
+    const want = game.orientation === "landscape" || game.orientation === "portrait" ? game.orientation : null;
+    rotateWant = CONFIG.rotatePrompt && ON_TOUCH ? want : null;
+    if (rotateWant && !orientationOk()) {
+      $("rotate-title").textContent = rotateWant === "landscape" ? "Turn your device sideways" : "Turn your device upright";
+      $("rotate-text").textContent = "This game plays best in " + rotateWant + ".";
+      rotateBox.dataset.want = rotateWant;
+      rotateBox.hidden = false;
+    } else {
+      rotateBox.hidden = true;
+    }
+  }
+  function dismissRotate() {
+    if (rotateBox.hidden) return;
+    rotateBox.hidden = true;
+    rotateWant = null;
+    if (current) { showHelpBriefly(); if (frame) frame.focus(); }
+  }
+  function onOrientationChange() { if (rotateWant && orientationOk()) dismissRotate(); }
+  if (PORTRAIT_MQ.addEventListener) PORTRAIT_MQ.addEventListener("change", onOrientationChange);
+  else if (PORTRAIT_MQ.addListener) PORTRAIT_MQ.addListener(onOrientationChange);
+  $("rotate-skip").addEventListener("click", dismissRotate);
 
   function closeGame(reason) {
     if (!current) return;
@@ -837,6 +903,8 @@ const CONFIG = {
     setHelp(false);
     clearTimeout(helpTimer);
     hideConfirm(false);
+    rotateBox.hidden = true;
+    rotateWant = null;
 
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden", "true");

@@ -26,7 +26,7 @@ Stuck? The guide's Troubleshooting table covers the common problems. If the chec
 
 ### 2. Add your game folder
 
-Copy your finished game folder into `games/`. It must look like the example, `games/sample-star-catcher/`:
+Copy your finished game folder into `games/`. It must look like the classmates' folders already there (for example `games/walsh-the-catch/`):
 
 ```
 games/

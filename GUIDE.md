@@ -245,14 +245,14 @@ Test your game inside the real arcade on your own laptop. The arcade is this rep
     git checkout -b add-lastname-game-title
     ```
 
-3. Inside are the arcade (`index.html`), the checker (`check_games.py`) and a `games/` folder holding an example game, `sample-star-catcher`.
+3. Inside are the arcade (`index.html`), the checker (`check_games.py`) and a `games/` folder holding your classmates' games.
 4. Make sure Python is installed (do this with Wi-Fi on):
     - Mac: run `python3 --version` in Terminal. If a window offers to install developer tools, click Install and wait for it to finish.
     - Windows: run `py --version`. If Python isn't found, install it from python.org and tick **Add python.exe to PATH**.
 
 ### Run the checker
 
-1. Copy your game folder into `studio-arcade/games/`, next to `sample-star-catcher`. If you're unsure what your folder should look like, open the sample and compare.
+1. Copy your game folder into `studio-arcade/games/`, next to your classmates' folders. If you're unsure what your folder should look like, open one of theirs (for example `walsh-the-catch`) and compare.
 2. In your terminal, make sure you're in the `studio-arcade` folder. You already are if you just cloned it.
 3. Run `python3 check_games.py --write` (Windows: `py check_games.py --write`).
 4. Read the result for your folder:

@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Farm Friends Climb</title>
 <style>
-  /* The game is a phone screen (402 x 874), scaled to the window height in the middle, on a plain background. */
-  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FFFFFF; }
+  /* The game is a phone screen (402 x 874), scaled to the window height in the middle, on plain black to match
+     the arcade's dark mode. */
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000000; }
   body { -webkit-user-select: none; user-select: none; touch-action: none; }
   #kiosk-frame { position: fixed; left: 0; top: 0; width: 402px; height: 874px; border: 0; transform-origin: 0 0;
                  background: transparent; }
@@ -580,6 +581,8 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   letter-spacing: 1.3px;
 }
 
+/* The page around the frame shows through its edges, so no white line appears where the scaled frame ends. */
+html, body { background: transparent !important; }
 /* Kiosk: lists still scroll by wheel, drag or touch, but no scrollbar is drawn. */
 html { scrollbar-width: none; }
 ::-webkit-scrollbar { display: none; }
@@ -1123,6 +1126,8 @@ button:disabled { opacity: 0.5; }
   letter-spacing: 1.3px;
 }
 
+/* The page around the frame shows through its edges, so no white line appears where the scaled frame ends. */
+html, body { background: transparent !important; }
 /* Kiosk: lists still scroll by wheel, drag or touch, but no scrollbar is drawn. */
 html { scrollbar-width: none; }
 ::-webkit-scrollbar { display: none; }

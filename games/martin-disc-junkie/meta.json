@@ -1,0 +1,8 @@
+{
+  "title": "Disc Junkie",
+  "student": "Quin Martin",
+  "tag": "Rhythm",
+  "input": ["touch", "mouse"],
+  "devices": ["desktop", "tablet", "phone"],
+  "instructions": "Tap or click the MELODY, DRUMS, FX and VOCALS buttons.\nEMOTE and ULT are on screen too.\nBest in landscape."
+}

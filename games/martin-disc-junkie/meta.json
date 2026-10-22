@@ -2,7 +2,16 @@
   "title": "Disc Junkie",
   "student": "Quin Martin",
   "tag": "Rhythm",
-  "input": ["touch", "mouse"],
-  "devices": ["desktop", "tablet", "phone"],
+  "input": [
+    "touch",
+    "mouse"
+  ],
+  "devices": [
+    "desktop",
+    "tablet",
+    "phone"
+  ],
+  "designedFor": "phone",
+  "orientation": "landscape",
   "instructions": "Tap or click the MELODY, DRUMS, FX and VOCALS buttons.\nEMOTE and ULT are on screen too.\nBest in landscape."
 }

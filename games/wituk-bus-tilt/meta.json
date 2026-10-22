@@ -2,7 +2,16 @@
   "title": "Bus Tilt: Jayhawk Blvd",
   "student": "Nathan Wituk",
   "tag": "Arcade",
-  "input": ["keyboard", "touch", "mouse"],
-  "devices": ["desktop", "tablet", "phone"],
+  "input": [
+    "keyboard",
+    "touch",
+    "mouse"
+  ],
+  "devices": [
+    "desktop",
+    "tablet",
+    "phone"
+  ],
+  "designedFor": "phone",
   "instructions": "Left / right arrows or A / D to change lanes. On touch, swipe or tap a side.\nGrab coins, dodge cones and barricades. 3 lives.\nDrive Jayhawk Blvd to the fountain! P to pause."
 }

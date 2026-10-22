@@ -2,7 +2,17 @@
   "title": "Farm Friends Climb",
   "student": "Victoria Neeser",
   "tag": "Arcade",
-  "input": ["keyboard", "mouse", "touch"],
-  "devices": ["desktop", "tablet"],
+  "input": [
+    "keyboard",
+    "mouse",
+    "touch"
+  ],
+  "devices": [
+    "desktop",
+    "tablet",
+    "phone"
+  ],
+  "designedFor": "phone",
+  "orientation": "portrait",
   "instructions": "Pick a farm friend with ← → and press Enter, or tap Tap to Play.\nSteer with ← → or tap the left / right side to bounce up the clouds. Dodge bees, birds, owls and wind. P pauses."
 }

@@ -2,7 +2,14 @@
   "title": "Where the Flowers Grow",
   "student": "Leandra Ho",
   "tag": "Platformer",
-  "input": ["keyboard", "mouse"],
-  "devices": ["desktop"],
+  "input": [
+    "keyboard",
+    "mouse"
+  ],
+  "devices": [
+    "desktop"
+  ],
+  "designedFor": "desktop",
+  "orientation": "landscape",
   "instructions": "Arrows or A / D to walk, W or Space to jump.\nE to talk, hide in bushes and read clues.\nFind clovers and reach Clover. P to pause."
 }

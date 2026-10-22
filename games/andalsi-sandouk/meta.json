@@ -2,7 +2,16 @@
   "title": "Sandouk",
   "student": "Sajedah Andalsi",
   "tag": "Narrative",
-  "input": ["keyboard", "mouse", "touch"],
-  "devices": ["desktop", "tablet"],
+  "input": [
+    "keyboard",
+    "mouse",
+    "touch"
+  ],
+  "devices": [
+    "desktop",
+    "tablet"
+  ],
+  "designedFor": "desktop",
+  "orientation": "landscape",
   "instructions": "WASD or arrows to walk, E to open boxes. Or tap/click to move.\nDrag items to the right shelf; trash goes in the can. J opens your journal.\nFind the biscuit tin and open it. P to pause."
 }

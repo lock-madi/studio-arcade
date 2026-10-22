@@ -2,7 +2,16 @@
   "title": "Ready Rush",
   "student": "Cami Pewe",
   "tag": "Arcade",
-  "input": ["mouse", "touch"],
-  "devices": ["desktop", "tablet", "phone"],
+  "input": [
+    "mouse",
+    "touch"
+  ],
+  "devices": [
+    "desktop",
+    "tablet",
+    "phone"
+  ],
+  "designedFor": "phone",
+  "orientation": "portrait",
   "instructions": "You're late! Memorise the list of things you need.\nTap or click each item in the room, using the arrows to look around.\nGrab them all before the one-minute timer runs out."
 }

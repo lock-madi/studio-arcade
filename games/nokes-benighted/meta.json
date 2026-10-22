@@ -2,7 +2,14 @@
   "title": "Benighted",
   "student": "Loudon Nokes",
   "tag": "Narrative",
-  "input": ["keyboard", "mouse"],
-  "devices": ["desktop"],
+  "input": [
+    "keyboard",
+    "mouse"
+  ],
+  "devices": [
+    "desktop"
+  ],
+  "designedFor": "desktop",
+  "orientation": "landscape",
   "instructions": "Arrow keys walk. E acts on whatever you are standing at.\nTab opens your book. P pauses. Hold E to search.\nFind three wagon parts in three days. One villager is not a person."
 }

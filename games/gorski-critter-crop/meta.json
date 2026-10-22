@@ -2,7 +2,16 @@
   "title": "Critter Crop",
   "student": "Matt Gorski",
   "tag": "Arcade",
-  "input": ["keyboard", "mouse", "touch"],
-  "devices": ["desktop", "tablet"],
+  "input": [
+    "keyboard",
+    "mouse",
+    "touch"
+  ],
+  "devices": [
+    "desktop",
+    "tablet"
+  ],
+  "designedFor": "desktop",
+  "orientation": "landscape",
   "instructions": "Grow a garden and critters will visit and move in. Click or tap to use the tool in your hotbar: 1-9 pick a tool, 0 opens the backpack.\nAt night, drag a critter back and let go to fling it at Sludge Critters. Double-click or double-tap a critter for details. Arrow keys or WASD move the view, P pauses."
 }

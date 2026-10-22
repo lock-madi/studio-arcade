@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Bus Tilt: Jayhawk Blvd</title>
+<style>
+@font-face { font-family: Barlow; src: url(fonts/Barlow-Light.ttf); font-weight: 300; }
+@font-face { font-family: Barlow; src: url(fonts/Barlow-Medium.ttf); font-weight: 500; }
+@font-face { font-family: BarlowSC; src: url(fonts/BarlowSemiCondensed-Bold.ttf); font-weight: 700; }
+@font-face { font-family: Cinzel; src: url(fonts/Cinzel.ttf); }
+@font-face { font-family: Spectral; src: url(fonts/Spectral-Regular.ttf); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #bfe0f2; touch-action: none; user-select: none; -webkit-user-select: none; }
+canvas { display: block; width: 100vw; height: 100vh; }
+.ui { position: fixed; inset: 0; pointer-events: none; font-family: Barlow, sans-serif; color: #fff; }
+.hide { display: none !important; }
+.shadow { text-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 2px rgba(0,0,0,.3); }
+
+/* glass cards, as in the Figma HUD */
+#hud { display: flex; justify-content: center; gap: min(4vw, 40px); padding-top: min(3vh, 24px); }
+.card { position: relative; width: min(18vw, 180px); height: min(10.5vw, 105px); border-radius: 14px;
+  background: rgba(255,255,255,.22); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 18px rgba(0,0,0,.18); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.card img { position: absolute; left: -12%; top: -22%; width: 34%; }
+.card b { font-weight: 500; font-size: min(4.2vw, 42px); line-height: 1; }
+.card span { font-weight: 300; font-size: min(2.4vw, 24px); }
+
+/* lockups: start, crash, countdown / finish */
+.lockup { position: absolute; left: 0; right: 0; top: 56%; transform: translateY(-50%); text-align: center; }
+.big { font-family: BarlowSC, sans-serif; font-weight: 700; font-size: min(7vw, 72px); letter-spacing: .02em; line-height: 1.05; }
+.mid { font-weight: 300; font-size: min(3vw, 30px); }
+.row { display: inline-flex; align-items: center; gap: .35em; }
+.row img { height: 1.1em; }
+#tapIcon { height: min(12vw, 120px); animation: bob 1.2s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-10%); } }
+#msg { white-space: pre-line; }
+#credit { position: absolute; left: 10px; bottom: 8px; font-size: 13px; opacity: .85; }
+#loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #bfe0f2;
+  font-family: BarlowSC, sans-serif; font-size: 32px; color: #0b3d91; }
+</style>
+</head>
+<body>
+<div id="loading">Loading Jayhawk Blvd… <span id="pct">0</span>%</div>
+<div class="ui shadow">
+  <div id="hud">
+    <div class="card"><img src="ui/stars.png" alt=""><b id="score">0</b><span>score</span></div>
+    <div class="card"><img src="ui/hearts.png" alt=""><b id="lives">3</b><span>lives</span></div>
+    <div class="card"><img src="ui/trophy.png" alt=""><b id="best">0</b><span>best</span></div>
+  </div>
+  <div id="start" class="lockup">
+    <img id="tapIcon" src="ui/tapicon.png" alt=""><br>
+    <div class="big">TAP TO START</div>
+    <div class="mid">← → or A / D to change lanes · swipe on touch</div>
+  </div>
+  <div id="crash" class="lockup hide">
+    <div class="big row"><img src="ui/carcrash.png" alt="">YOU CRASHED</div>
+    <div class="mid">free tuition for students affected!</div><br>
+    <div class="mid row">final score: <img src="ui/final-score-star.png" alt=""><span id="crashScore">0</span></div><br><br>
+    <div class="mid">tap to drive again</div>
+  </div>
+  <div id="msg" class="lockup big hide"></div>
+  <div id="credit">Map data © OpenStreetMap contributors</div>
+</div>
+
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './lib/GLTFLoader.js'
+import { ROUTE, ROUTE_STEP_CM, ROUTE_UNION_M } from './route.js'
+
+// ---------- tuning (same values as the lens; the lens was in cm, this is metres) ----------
+const SPEED = 18, END_SPEED = 24        // m/s, speeds up evenly with distance
+const LOOK_AHEAD = 8                    // m: heading aimed this far either side (smooths the bends)
+const LANE_W = 3.5, MOVE_RATE = 10, LEAN_DEG = 6
+const FIRST_AT = 130, SPACING = 34, COINS_PER_ROW = 5, COIN_GAP = 4, LIVES = 3, SEED = 7
+const BUS_HALF_LEN = 6, BUS_HALF_W = 1.37
+const CAM_POS = new THREE.Vector3(-2.2, 7, 16), CAM_ROT = new THREE.Euler(-15 * Math.PI / 180, -8 * Math.PI / 180, 0, 'YXZ')
+const FOUNTAIN = new THREE.Vector3(-472.12, 5, -174.04)
+const FLAT_LAYERS = ["Road", "Road Edge", "Lane Markings", "Finish Line", "Ground", "Walks", "Plazas", "Crosswalks", "Ring Road", "Ring Exit", "Ring Markings"]
+const SIGNS = [
+  { s: 164, left: true,  name: "SPOONER\nHALL",    address: "1340 Jayhawk Blvd.", subtitle: "Hall Center for the Humanities" },
+  { s: 167, left: false, name: "DYCHE\nHALL",      address: "1345 Jayhawk Blvd.", subtitle: "Natural History Museum" },
+  { s: 282, left: false, name: "LIPPINCOTT\nHALL", address: "1410 Jayhawk Blvd.", subtitle: "" },
+  { s: 286, left: true,  name: "FRASER\nHALL",     address: "1415 Jayhawk Blvd.", subtitle: "" },
+  { s: 614, left: true,  name: "WESCOE\nHALL",     address: "1445 Jayhawk Blvd.", subtitle: "" },
+  { s: 651, left: false, name: "STRONG\nHALL",     address: "1450 Jayhawk Blvd.", subtitle: "Office of the Chancellor" },
+  { s: 747, left: true,  name: "BUDIG\nHALL",      address: "1455 Jayhawk Blvd.", subtitle: "Hoch Auditoria" },
+  { s: 770, left: false, name: "SNOW\nHALL",       address: "1460 Jayhawk Blvd.", subtitle: "Department of Mathematics" },
+  { s: 842, left: true,  name: "MARVIN\nHALL",     address: "1465 Jayhawk Blvd.", subtitle: "School of Architecture & Design" },
+]
+const BEST_KEY = "wituk-bus-tilt-best"
+
+// ---------- route (Route.ts) ----------
+const STEP = ROUTE_STEP_CM / 100, COUNT = ROUTE.length / 3
+const LENGTH_M = (COUNT - 1) * STEP
+function routeAt(m, out = new THREE.Vector3()) {
+  const f = Math.max(0, Math.min(COUNT - 1.001, m / STEP))
+  const i = Math.floor(f), u = f - i, a = i * 3, b = a + 3
+  return out.set(ROUTE[a] + (ROUTE[b] - ROUTE[a]) * u, ROUTE[a + 1] + (ROUTE[b + 1] - ROUTE[a + 1]) * u,
+                 ROUTE[a + 2] + (ROUTE[b + 2] - ROUTE[a + 2]) * u).multiplyScalar(0.01)
+}
+function routeFrame(m, look) {
+  const d = routeAt(m + look).sub(routeAt(m - look))
+  const yaw = Math.atan2(-d.x, -d.z), pitch = Math.atan2(d.y, Math.hypot(d.x, d.z))
+  return { pos: routeAt(m), rot: new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')),
+           right: new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)) }
+}
+
+// ---------- renderer, scene, lights ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+document.body.prepend(renderer.domElement)
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0xbfe0f2)
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9a7a, 2.2))
+const SUN_DIR = new THREE.Vector3(-0.4, -1, -0.3).normalize()   // direction the light travels
+const sun = new THREE.DirectionalLight(0xffffff, 1.6)
+sun.position.copy(SUN_DIR).multiplyScalar(-100)
+scene.add(sun)
+
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 300)
+function resize() {
+  const w = innerWidth, h = innerHeight, aspect = w / h
+  // keep roughly the lens's ~80° horizontal view on any window shape
+  camera.fov = THREE.MathUtils.clamp(2 * Math.atan(Math.tan(40 * Math.PI / 180) / aspect) * 180 / Math.PI, 50, 75)
+  camera.aspect = aspect
+  camera.updateProjectionMatrix()
+  renderer.setSize(w, h, false)
+  treeMat.uniforms.pixelRatio.value = renderer.getPixelRatio()
+}
+
+// rig = bus + camera, driven along the route (RouteRig.ts)
+const rig = new THREE.Group(), busGroup = new THREE.Group()
+rig.add(busGroup, camera)
+scene.add(rig)
+camera.position.copy(CAM_POS)
+camera.quaternion.setFromEuler(CAM_ROT)
+const camLocal = camera.quaternion.clone()
+
+// ---------- materials ----------
+// Trees: vertex colour, sun + ambient, and a dithered dissolve near the camera (the lens's code-node shader).
+// Each tree's base (x, z in metres) is baked into UV1, so a whole tree fades as one.
+const treeMat = new THREE.RawShaderMaterial({
+  glslVersion: THREE.GLSL3,
+  uniforms: { sunDir: { value: SUN_DIR }, pixelRatio: { value: 1 } },
+  vertexShader: `
+    precision highp float;
+    uniform mat4 projectionMatrix, modelViewMatrix, modelMatrix;
+    in vec3 position, normal, color; in vec2 uv1;
+    out vec3 vColor, vNormal; out vec2 vTree;
+    void main() {
+      vColor = color; vTree = uv1;
+      vNormal = normalize(mat3(modelMatrix) * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    precision highp float;
+    uniform vec3 cameraPosition, sunDir; uniform float pixelRatio;
+    in vec3 vColor, vNormal; in vec2 vTree;
+    out vec4 outColor;
+    const float FADE_GONE = 11.0, FADE_FULL = 20.0, AMBIENT = 0.78, SUN = 0.30;
+    const float M[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
+    void main() {
+      float a = smoothstep(FADE_GONE, FADE_FULL, distance(cameraPosition.xz, vec2(vTree.x, -vTree.y)));   // UV1 v = -z
+      ivec2 q = ivec2(mod(floor(gl_FragCoord.xy / pixelRatio), 4.0));
+      if (a < (M[q.y * 4 + q.x] + 0.5) / 16.0) discard;
+      float light = AMBIENT + SUN * max(dot(normalize(vNormal), -sunDir), 0.0);
+      outColor = vec4(pow(vColor, vec3(1.0 / 2.2)) * light, 1.0);   // glTF vertex colours are linear
+    }`,
+})
+const flatMats = new Map()   // one unlit copy per original material: exact /map colours
+function flatOf(m, hasColor) {
+  if (!flatMats.has(m)) flatMats.set(m, new THREE.MeshBasicMaterial({ color: m.color, map: m.map, vertexColors: hasColor, side: THREE.DoubleSide }))
+  return flatMats.get(m)
+}
+
+// ---------- sound (Web Audio, started on the first input) ----------
+const SFX = { coin: 'sfx/coin.m4a', hit: 'sfx/sfx-hit.mp3', crash: 'sfx/sfx-crash.mp3', finish: 'sfx/finish.mp3',
+              c1: 'sfx/sfx-count-1.mp3', c2: 'sfx/sfx-count-2.mp3', c3: 'sfx/sfx-count-3.mp3', go: 'sfx/sfx-count-go.mp3' }
+let actx = null
+const buffers = {}
+function unlockAudio() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return }
+  actx = new (window.AudioContext || window.webkitAudioContext)()
+  for (const [k, url] of Object.entries(SFX))
+    fetch(url).then(r => r.arrayBuffer()).then(b => actx.decodeAudioData(b, d => buffers[k] = d)).catch(() => {})
+}
+function sfx(k) {
+  if (!actx || !buffers[k]) return
+  const s = actx.createBufferSource()
+  s.buffer = buffers[k]; s.connect(actx.destination); s.start()
+}
+
+// ---------- particles: fountain jets (always) and confetti (at the finish) ----------
+function particles(n, tex, color, size, opacity) {
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3).fill(-1e4), 3))
+  const m = new THREE.PointsMaterial({ map: new THREE.TextureLoader().load(tex), color, size, transparent: true,
+                                       opacity, depthWrite: false, sizeAttenuation: true })
+  const p = new THREE.Points(g, m)
+  p.frustumCulled = false
+  p.userData = { vel: new Float32Array(n * 3), age: new Float32Array(n).fill(99), next: 0 }
+  scene.add(p)
+  return p
+}
+const jets = particles(600, 'ui/water-drop.png', 0xcfefff, 0.35, 0.8)
+const confetti = [0xe8000d, 0x0051ba, 0xffffff].map(c => particles(400, 'ui/confetti.png', c, 0.45, 1))
+function emit(p, count, spread, up, life) {
+  const pos = p.geometry.attributes.position.array, { vel, age } = p.userData
+  for (let k = 0; k < count; k++) {
+    const i = p.userData.next = (p.userData.next + 1) % age.length, a = Math.random() * Math.PI * 2, r = Math.random() * spread
+    pos.set([FOUNTAIN.x, FOUNTAIN.y - 3.5, FOUNTAIN.z], i * 3)
+    vel.set([Math.cos(a) * r, up * (0.8 + Math.random() * 0.4), Math.sin(a) * r], i * 3)
+    age[i] = -life
+  }
+}
+function stepParticles(p, dt, gravity, drag) {
+  const pos = p.geometry.attributes.position.array, { vel, age } = p.userData
+  for (let i = 0; i < age.length; i++) {
+    if (age[i] >= 0) { if (age[i] < 99) { pos[i * 3 + 1] = -1e4; age[i] = 99 } continue }
+    age[i] += dt
+    vel[i * 3 + 1] -= gravity * dt
+    for (let c = 0; c < 3; c++) { vel[i * 3 + c] *= 1 - drag * dt; pos[i * 3 + c] += vel[i * 3 + c] * dt }
+  }
+  p.geometry.attributes.position.needsUpdate = true
+}
+
+// ---------- signs (SignPlacer.ts): text drawn on a canvas over the sign's face ----------
+function signText(s) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 384
+  const g = c.getContext('2d')
+  g.fillStyle = '#f5ede3'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.font = 'bold 78px Cinzel'
+  s.name.split('\n').forEach((l, i) => g.fillText(l, 256, 70 + i * 84, 490))
+  g.font = '44px Spectral'; g.fillStyle = '#ede6d6'
+  g.fillText(s.address, 256, 262, 490)
+  if (s.subtitle) { g.font = '36px Spectral'; g.fillText(s.subtitle, 256, 322, 490) }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4
+  return new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.275), new THREE.MeshBasicMaterial({ map: t, transparent: true }))
+}
+function placeSign(proto, s) {
+  const f = routeFrame(s.s, 8), side = s.left ? -1 : 1
+  const o = proto.clone()
+  o.position.copy(f.pos).addScaledVector(f.right, side * (5.25 + 3)).y -= 0.12
+  o.rotation.y = Math.atan2(-f.right.z, f.right.x)   // the road's heading: the face (+Z) looks back at the bus
+  o.scale.setScalar(1.5)
+  const t = signText(s)
+  t.position.set(0, 1.62, 0.36)
+  o.add(t)
+  scene.add(o)
+}
+
+// ---------- game (GameManager.ts) ----------
+const State = { Ready: 0, Countdown: 1, Running: 2, Finished: 3, Over: 4 }
+const $ = id => document.getElementById(id)
+let state = State.Ready, score = 0, livesLeft = LIVES, blink = 0, count = 0, finishedAt = 0, paused = false
+let best = 0, s = ROUTE_UNION_M, lane = 1, x = 0, camFrom = new THREE.Quaternion()
+try { best = parseInt(localStorage.getItem(BEST_KEY)) || 0 } catch (e) {}
+const items = []
+
+function rng() {   // mulberry32: the same layout every run
+  let a = SEED >>> 0
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+function layout(models) {
+  const r = rng(), end = LENGTH_M - 25
+  for (let m = FIRST_AT; m < end; m += SPACING) {
+    const block = Math.floor(r() * 3)
+    if (r() < 0.5) spawn(models.barricade, m, block, false, 1.0)
+    else { spawn(models.cone, m - 1.2, block, false, 0.8); spawn(models.cone, m + 1.2, block, false, 0.8) }
+    const coinLane = (block + 1 + Math.floor(r() * 2)) % 3
+    const start = m + SPACING / 2 - (COINS_PER_ROW - 1) * COIN_GAP / 2
+    for (let k = 0; k < COINS_PER_ROW; k++) {
+      const cs = start + k * COIN_GAP
+      if (cs < end) spawn(models.coin, cs, coinLane, true, 0.6)
+    }
+  }
+}
+function spawn(proto, m, ln, coin, half) {
+  const obj = proto.clone(), f = routeFrame(m, LOOK_AHEAD)
+  obj.position.copy(f.pos).addScaledVector(f.right, (ln - 1) * LANE_W)
+  obj.quaternion.copy(f.rot)
+  scene.add(obj)
+  items.push({ obj, s: m, lane: ln, coin, half, live: true, rot: f.rot })
+}
+
+function placeRig() {
+  const f = routeFrame(s, LOOK_AHEAD)
+  rig.position.copy(f.pos); rig.quaternion.copy(f.rot)
+}
+function restart(st) {
+  score = 0; livesLeft = LIVES; blink = 0; busGroup.visible = true
+  for (const it of items) { it.live = true; it.obj.visible = true }
+  s = ROUTE_UNION_M; placeRig()
+  camera.quaternion.copy(camLocal)
+  go(st)
+}
+function go(st) {
+  state = st; paused = false
+  if (st !== State.Running) { blink = 0; busGroup.visible = true }
+  let record = ""
+  if ((st === State.Finished || st === State.Over) && score > best) {
+    best = score; record = "\nNEW BEST!"
+    try { localStorage.setItem(BEST_KEY, best) } catch (e) {}
+  }
+  $('start').classList.toggle('hide', st !== State.Ready)
+  $('credit').classList.toggle('hide', st !== State.Ready && st !== State.Over)
+  $('crash').classList.toggle('hide', st !== State.Over)
+  $('crashScore').textContent = score
+  if (st === State.Countdown) { count = 3; sfx('c1') }
+  if (st === State.Finished) { sfx('finish'); finishedAt = performance.now() / 1000; camera.getWorldQuaternion(camFrom) }
+  if (st === State.Over) sfx('crash')
+  $('msg').textContent = st === State.Finished ? "FINISH!\nSCORE " + score + record + "\nTAP TO DRIVE AGAIN" : ""
+  $('msg').classList.toggle('hide', st !== State.Countdown && st !== State.Finished)
+  updateHud()
+}
+function updateHud() { $('score').textContent = score; $('lives').textContent = livesLeft; $('best').textContent = best }
+
+function tap() {
+  unlockAudio()
+  if (state === State.Ready) go(State.Countdown)
+  else if (state === State.Finished || state === State.Over) restart(State.Countdown)
+}
+function steer(d) { if (state === State.Running && !paused) lane = Math.max(0, Math.min(2, lane + d)) }
+
+// ---------- input: keys (laptop), swipe / tap (touch), click (mouse) ----------
+addEventListener('keydown', e => {
+  if (e.repeat) return
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') steer(-1)
+  else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') steer(1)
+  else if (e.key === 'p' || e.key === 'P') { if (state === State.Running || state === State.Countdown) { paused = !paused; $('msg').textContent = paused ? "PAUSED\nP TO RESUME" : ""; $('msg').classList.toggle('hide', !paused && state !== State.Countdown) } }
+  else if (e.key === ' ' || e.key === 'Enter') tap()
+  else return
+  unlockAudio(); e.preventDefault()
+})
+let down = null
+addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY } })
+addEventListener('pointerup', e => {
+  if (!down) return
+  const dx = e.clientX - down.x, dy = e.clientY - down.y
+  down = null
+  unlockAudio()
+  if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) steer(dx > 0 ? 1 : -1)
+  else if (state === State.Running && Math.hypot(dx, dy) < 15) steer(e.clientX < innerWidth / 2 ? -1 : 1)   // tap a side also works
+  else tap()
+})
+
+// ---------- per frame ----------
+const clock = new THREE.Clock(), spin = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0)
+const aimM = new THREE.Matrix4(), aimQ = new THREE.Quaternion(), camPos = new THREE.Vector3(), parentQ = new THREE.Quaternion()
+let jetAcc = 0
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000
+  if (paused) { renderer.render(scene, camera); return }
+
+  // lanes (HeadTiltLanes.ts with keys / swipes instead of head roll)
+  const target = (lane - 1) * LANE_W
+  x += (target - x) * (1 - Math.exp(-MOVE_RATE * dt))
+  busGroup.position.x = x
+  busGroup.rotation.y = -(target - x) / LANE_W * LEAN_DEG * Math.PI / 180
+  camera.position.x = CAM_POS.x + x
+
+  // fountain jets and confetti
+  jetAcc += dt * 220
+  emit(jets, Math.floor(jetAcc), 1.2, 9, 1.8); jetAcc %= 1
+  stepParticles(jets, dt, 9.8, 0.2)
+  for (const c of confetti) { if (state === State.Finished) emit(c, 3, 5, 14, 4); stepParticles(c, dt, 4, 1.2) }
+
+  if (state === State.Finished) {   // ease round to look a little above the fountain over 1.5 s
+    const k = Math.min(1, (now - finishedAt) / 1.5)
+    camera.getWorldPosition(camPos)
+    aimQ.setFromRotationMatrix(aimM.lookAt(camPos, FOUNTAIN.clone().add(new THREE.Vector3(0, 9, 0)), Y))
+    rig.getWorldQuaternion(parentQ)
+    camera.quaternion.copy(camFrom).slerp(aimQ, k * k * (3 - 2 * k)).premultiply(parentQ.invert())
+  }
+  for (const it of items) if (it.coin && it.live) it.obj.quaternion.copy(it.rot).multiply(spin.setFromAxisAngle(Y, now * 3))
+
+  if (state === State.Countdown) {
+    const was = Math.ceil(count)
+    count -= dt
+    const c = Math.ceil(count)
+    if (c !== was) sfx(c > 0 ? ['c1', 'c2', 'c3'][3 - c] : 'go')   // 2, 1 step up; GO! on zero
+    $('msg').textContent = count > 0 ? String(c) : "GO!"
+    if (count <= -0.5) go(State.Running)
+  } else if (state === State.Running) {
+    const t = Math.max(0, Math.min(1, (s - ROUTE_UNION_M) / (LENGTH_M - ROUTE_UNION_M)))
+    s = Math.min(s + (SPEED + (END_SPEED - SPEED) * t) * dt, LENGTH_M)
+    placeRig()
+    if (blink > 0) { blink -= dt; busGroup.visible = blink <= 0 || Math.floor(blink * 10) % 2 === 0 }
+    for (const it of items) {
+      if (!it.live || Math.abs(it.s - s) > BUS_HALF_LEN + it.half) continue
+      if (Math.abs((it.lane - 1) * LANE_W - x) > BUS_HALF_W + it.half) continue
+      if (it.coin) { it.live = false; it.obj.visible = false; score += 10; sfx('coin') }
+      else if (blink <= 0) {
+        it.live = false; livesLeft -= 1; blink = 1.5
+        if (livesLeft > 0) sfx('hit')
+        else { go(State.Over); break }
+      }
+      updateHud()
+    }
+    if (state === State.Running && s >= LENGTH_M) go(State.Finished)
+  }
+  renderer.render(scene, camera)
+}
+
+// ---------- load ----------
+const manager = new THREE.LoadingManager()
+manager.onProgress = (url, done, total) => { $('pct').textContent = Math.round(done / total * 100) }
+const loader = new GLTFLoader(manager)
+const load = url => new Promise((res, rej) => loader.load(url, g => res(g.scene), e => {
+  if (e.lengthComputable && url.includes('jayhawk')) $('pct').textContent = Math.round(e.loaded / e.total * 100)
+}, rej))
+
+Promise.all(['models/jayhawk_blvd.glb', 'models/bus-lfk.glb', 'models/coin.glb', 'models/cone.glb', 'models/barricade.glb', 'models/ku_sign.glb'].map(load)
+           .concat([document.fonts.load('58px Cinzel'), document.fonts.load('34px Spectral')]))
+.then(([map, bus, coin, cone, barricade, sign]) => {
+  for (const node of map.children) {
+    if (node.name === 'Trees') node.traverse(o => { if (o.isMesh) o.material = treeMat })
+    else if (FLAT_LAYERS.includes(node.name)) node.traverse(o => { if (o.isMesh) o.material = flatOf(o.material, !!o.geometry.attributes.color) })
+  }
+  scene.add(map)
+  bus.rotation.y = Math.PI / 2
+  busGroup.add(bus)
+  layout({ coin, cone, barricade })
+  for (const sg of SIGNS) placeSign(sign, sg)
+  resize(); addEventListener('resize', resize)
+  restart(State.Ready)
+  const shot = new URLSearchParams(location.search).get('shot')   // ?shot=<metres>: start mid-run (thumbnail capture, testing)
+  if (shot !== null) { go(State.Running); s = +shot || 600 }
+  $('loading').remove()
+  renderer.setAnimationLoop(tick)
+}).catch(e => { $('loading').textContent = 'Could not load the game files.'; console.error(e) })
+</script>
+</body>
+</html>

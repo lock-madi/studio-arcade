@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Die Up</title>
+<link rel="stylesheet" href="css/style.css?v=53" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Pause button -->
+    <button id="pauseBtn" class="icon-btn hidden"><img src="assets/btn_pause.svg" alt="Pause" draggable="false" /></button>
+
+    <!-- Score bug -->
+    <div id="scoreBug" class="hidden">
+      <div class="score-box cpu-box"><span class="score-value" id="scoreCpu">0</span></div>
+      <div class="score-mid">
+        <span class="score-static-label">CPU</span>
+        <span class="score-divider"></span>
+        <span class="score-static-label">YOU</span>
+      </div>
+      <div class="score-box you-box"><span class="score-value" id="scoreYou">0</span></div>
+    </div>
+
+    <canvas id="scene" width="400" height="750"></canvas>
+
+    <!-- Swipe ring/line/anchor feedback, drawn above the swipe box (see
+         #swipeBox) rather than as part of the main scene canvas, so it
+         never gets dimmed underneath the box's own opacity. -->
+    <canvas id="swipeFeedback" width="400" height="750"></canvas>
+
+    <!-- Title screen -->
+    <div id="titleScreen" class="overlay-screen">
+      <img class="title-logo" src="assets/title_logo.svg" alt="Die Up" />
+      <p class="game-subtitle">First to 15 wins</p>
+      <button class="big-btn" id="playBtn">PLAY</button>
+      <button class="big-btn" id="tutorialBtn">TUTORIAL</button>
+      <button class="small-btn" id="chooseSkinBtn">CHOOSE PLAYER</button>
+    </div>
+
+    <!-- Skin select screen -->
+    <div id="skinScreen" class="overlay-screen hidden">
+      <button id="skinBackBtn" class="icon-btn"><img src="assets/btn_back.svg" alt="Back" draggable="false" /></button>
+      <h2 class="skin-title">CHOOSE YOUR PLAYER</h2>
+      <div id="skinPedestal">
+        <img id="skinPedestalImg" src="" alt="" />
+        <img id="skinPedestalBase" src="assets/pedestal.svg" alt="" />
+        <div id="skinPedestalName"></div>
+      </div>
+      <div id="skinGridPanel">
+        <div id="skinGrid"></div>
+      </div>
+    </div>
+
+    <!-- Aim screen -->
+    <div id="aimTarget" class="hidden"><img src="assets/target.svg" alt="" draggable="false" /></div>
+    <div id="aimScreen" class="overlay-screen hidden">
+      <div class="hint-banner instruction-banner" id="aimHint">AIM THE TARGET TO THROW THE DIE</div>
+      <button class="big-btn" id="throwBtn">THROW</button>
+    </div>
+
+    <!-- Ready-for-defense prompt -->
+    <div id="readyPanel" class="control-panel hidden">
+      <div class="hint-banner instruction-banner" id="readyHint">TAP ONCE THE CIRCLE COMES TO A CLOSE</div>
+      <button class="big-btn" id="readyBtn">READY</button>
+    </div>
+
+    <!-- Throw screen: swipe-for-power -->
+    <img id="swipeBox" class="hidden" src="assets/swipe_box.svg" alt="" draggable="false" />
+    <div id="swipePanel" class="control-panel hidden">
+      <div class="hint-banner instruction-banner" id="swipeHint">SWIPE UP FOR POWER</div>
+    </div>
+    <div id="swipeHandle" class="hidden"><img src="assets/swipe_diamond.svg" alt="" draggable="false" /></div>
+
+    <!-- Throw screen: timing oscillator -->
+    <div id="timingPanel" class="control-panel hidden">
+      <div class="hint-banner instruction-banner" id="timingHint">TAP RELEASE FOR ACCURACY</div>
+      <div id="oscTrack" class="meter-track">
+        <div id="oscTarget" class="meter-target"></div>
+        <div id="oscMover" class="meter-mover"></div>
+      </div>
+      <button class="big-btn" id="releaseBtn">RELEASE!</button>
+    </div>
+
+    <!-- Result banner (throw quality feedback) -->
+    <div id="qualityBanner" class="quality-banner hidden"></div>
+
+    <!-- Fifa panel: two stages back to back (kick, then catch), same
+         look as the timing meter -->
+    <div id="fifaPanel" class="control-panel hidden">
+      <div class="hint-banner" id="fifaHint">KICK IT UP! Tap KICK when the lines match!</div>
+      <div id="fifaTrack" class="meter-track">
+        <div id="fifaTarget" class="meter-target"></div>
+        <div id="fifaMover" class="meter-mover"></div>
+      </div>
+      <button class="big-btn" id="fifaBtn">KICK!</button>
+    </div>
+
+    <!-- Defense catch button -->
+    <button id="catchBtn" class="hidden">
+      <img id="catchIcon" src="assets/catch_hand.svg" alt="" draggable="false" />
+    </button>
+
+    <!-- Turn transition toast -->
+    <div id="turnToast" class="hidden"></div>
+
+    <!-- Point popup + confetti layer -->
+    <div id="popupLayer" class="hidden">
+      <div id="popupCard">
+        <div id="popupText">+1</div>
+        <div id="popupSub">POINT!</div>
+      </div>
+    </div>
+    <canvas id="confettiCanvas" width="400" height="750"></canvas>
+
+    <!-- Game over -->
+    <div id="gameOverScreen" class="overlay-screen hidden">
+      <h1 class="game-title" id="gameOverTitle">YOU WIN!</h1>
+      <p class="game-subtitle" id="gameOverScore">15 - 9</p>
+      <button class="big-btn" id="playAgainBtn">PLAY AGAIN</button>
+    </div>
+
+    <!-- Pause screen: dims the game scene, Resume/Quit use the same
+         pill-button art as THROW/PLAY -->
+    <div id="pauseScreen" class="hidden">
+      <button class="big-btn" id="resumeBtn">RESUME</button>
+      <button class="big-btn" id="quitBtn">QUIT</button>
+    </div>
+
+    <!-- Tutorial: Power Swipe step popup. Dims the real swipe screen and
+         shows a looping hand demo before the player can try it themselves. -->
+    <div id="tutorialSwipePopup" class="hidden">
+      <h2 class="tutorial-popup-title">OFFENSE</h2>
+      <div class="tutorial-popup-card">
+        <div class="tutorial-hand-stage">
+          <img class="tutorial-hand-ring" src="assets/swipe_ring.svg" alt="" draggable="false" />
+          <img class="tutorial-hand-diamond" src="assets/swipe_diamond.svg" alt="" draggable="false" />
+          <img class="tutorial-hand" src="assets/tutorial_hand.svg" alt="" draggable="false" />
+        </div>
+        <p class="tutorial-popup-text">SWIPE UP WITH YOUR FINGER TO TIME THE POWER OF YOUR THROW</p>
+      </div>
+      <button class="big-btn" id="tutorialSwipeContinueBtn">CONTINUE</button>
+    </div>
+
+    <!-- Tutorial: Accuracy Timer step popup. Same idea as the swipe one —
+         dims the real timing screen (oscillator held still) until CONTINUE. -->
+    <div id="tutorialTimingPopup" class="hidden">
+      <h2 class="tutorial-popup-title">OFFENSE</h2>
+      <div class="tutorial-popup-card">
+        <div class="tutorial-tap-stage">
+          <span class="tutorial-ripple"></span>
+          <img class="tutorial-tap-hand" src="assets/tutorial_hand.svg" alt="" draggable="false" />
+        </div>
+        <div class="tutorial-bar">
+          <span class="tutorial-bar-target"></span>
+          <span class="tutorial-bar-mover"></span>
+        </div>
+        <p class="tutorial-popup-text">TAP FOR ACCURACY WHEN THE BAR IS IN THE MIDDLE</p>
+      </div>
+      <button class="big-btn" id="tutorialTimingContinueBtn">CONTINUE</button>
+    </div>
+
+    <!-- Tutorial: Catch step popup, shown before the CPU's practice throw. -->
+    <div id="tutorialCatchPopup" class="hidden">
+      <h2 class="tutorial-popup-title">DEFENSE</h2>
+      <div class="tutorial-popup-card">
+        <div class="tutorial-tap-stage slow">
+          <span class="tutorial-ripple"></span>
+          <img class="tutorial-tap-hand" src="assets/tutorial_hand.svg" alt="" draggable="false" />
+        </div>
+        <div class="tutorial-catch-demo">
+          <img class="tutorial-catch-big" src="assets/tutorial_catch_big.svg" alt="" draggable="false" />
+          <img class="tutorial-catch-arrow" src="assets/tutorial_catch_arrow.svg" alt="" draggable="false" />
+          <img class="tutorial-catch-small" src="assets/tutorial_catch_small.svg" alt="" draggable="false" />
+        </div>
+        <p class="tutorial-popup-text">TAP ONCE THE CIRCLE BLACK RING CLOSES TO CATCH</p>
+      </div>
+      <button class="big-btn" id="tutorialCatchContinueBtn">CONTINUE</button>
+    </div>
+
+    <!-- Tutorial: Fifa step popup — same look as the accuracy popup, new text. -->
+    <div id="tutorialFifaPopup" class="hidden">
+      <div class="tutorial-popup-card">
+        <div class="tutorial-tap-stage">
+          <span class="tutorial-ripple"></span>
+          <img class="tutorial-tap-hand" src="assets/tutorial_hand.svg" alt="" draggable="false" />
+        </div>
+        <div class="tutorial-bar">
+          <span class="tutorial-bar-target"></span>
+          <span class="tutorial-bar-mover"></span>
+        </div>
+        <p class="tutorial-popup-text">TAP TO TIME THE KICK, THEN TAP AGAIN TO TIME THE CATCH</p>
+      </div>
+      <button class="big-btn" id="tutorialFifaContinueBtn">CONTINUE</button>
+    </div>
+
+    <!-- Tutorial: finish screen, shown after the last step. -->
+    <div id="tutorialFinishScreen" class="hidden">
+      <button class="big-btn" id="tutorialFinishBtn">FINISH</button>
+      <button class="big-btn" id="tutorialRestartBtn">RESTART</button>
+    </div>
+
+  </div>
+
+  <script src="js/state.js?v=36"></script>
+  <script src="js/assets.js?v=31"></script>
+  <script src="js/render.js?v=38"></script>
+  <script src="js/confetti.js?v=31"></script>
+  <script src="js/mechanics.js?v=35"></script>
+  <script src="js/screens.js?v=59"></script>
+  <script src="js/main.js?v=31"></script>
+</body>
+</html>

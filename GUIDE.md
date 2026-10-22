@@ -228,7 +228,7 @@ This small text file tells the arcade your game's title, your name and how to pl
 | `tag` | One genre word: Arcade, Puzzle, Narrative, Rhythm, Platformer, Strategy, Experimental | 1 word |
 | `input` | Every input the game needs, from: `"keyboard"`, `"mouse"`, `"touch"`, `"gamepad"` | List all that apply |
 | `devices` | The devices your game is built for, from: `"desktop"` (laptop), `"tablet"` (iPad), `"phone"`. If it works on all of them, list all three | List all that apply |
-| `designedFor` | The ONE device your game plays best on: `"desktop"`, `"tablet"` or `"phone"`. It shows as a "Designed for ..." badge on your card. Optional | One value |
+| `designedFor` | The ONE device your game plays best on: `"desktop"`, `"tablet"` or `"phone"`. It shows on your card as a Desktop, Tablet or Mobile tag. Optional | One value |
 | `instructions` | The controls and the goal, shown in the arcade's How to Play box. `\n` starts a new line | 3 short lines |
 
 Keep the double quotes and commas exactly as in the template, with no comma after the last line. If you used the "Built with Claude" prompt, Claude has already written this file; just add your name. The checker in Step 4 tells you if there's a typo.

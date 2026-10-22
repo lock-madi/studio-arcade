@@ -1,0 +1,3491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farm Friends Climb</title>
+<style>
+  /* The game is a phone screen (402 x 874), scaled to the window height in the middle, on a plain background. */
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FFFFFF; }
+  body { -webkit-user-select: none; user-select: none; touch-action: none; }
+  #kiosk-frame { position: fixed; left: 0; top: 0; width: 402px; height: 874px; border: 0; transform-origin: 0 0;
+                 background: transparent; }
+</style>
+</head>
+<body>
+<iframe id="kiosk-frame" title="Farm Friends Climb"></iframe>
+
+<template id="page-home">
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#FEC98A">
+  <title>Farm Friends Climb</title>
+<style>
+
+/* Bundled fonts (kiosk/fonts/, see README.txt there). Until they're added, text falls back to Georgia / the system font. */
+@font-face { font-family: "Inter"; src: url("fonts/Inter.ttf") format("truetype"); font-weight: 100 900; font-style: normal; }
+@font-face { font-family: "Playfair Display"; src: url("fonts/PlayfairDisplay.ttf") format("truetype"); font-weight: 400 900; font-style: normal; }
+@font-face { font-family: "Playfair Display"; src: url("fonts/PlayfairDisplay-Italic.ttf") format("truetype"); font-weight: 400 900; font-style: italic; }
+/* Home screen, built from Figma "Game-Design" frame 183:721 (393 × 852), plus the Leaderboard and My Stats
+   screens it opens. Playfair Display: names, scores, titles. Inter: everything else. */
+:root {
+  color-scheme: light;
+  --bg: #F2F2F2;
+  --surface: #FFFFFF;
+  --ink: #3A2A20;
+  --brand-red: #8B2A3A;
+  --card-text: #919FAB;
+  --arrow-grey: #A8A8A8;
+  --quiet: #A8A8A8;       /* outline buttons, the ⓘ button, back links */
+  --label: #6B4A3A;       /* small caps labels, as on the in-game Climbed card */
+  --first-row: #97AEC4;
+  --first-tag: #ACBED0;
+  --podium-text: #9A9A7B;       /* ranks 2–3: number + "PR Box" */
+  --podium-fill: #D6D6B6;  /* ranks 2–3: circle + tag */
+  --row-line: rgba(107, 74, 58, 0.1);
+  --unit: #8B6A5A;
+  --rest-text: #DB9C9D;   /* ranks 4–10: number + "Single item" */
+  --rest-fill: #FCE1E0;   /* ranks 4–10: circle + tag */
+  --serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --sans: Inter, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: #FFFFFF; /* around the phone-width column on wider screens; each screen paints its own background */
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home {
+  position: relative;
+  z-index: 1; /* above .home-bg */
+  max-width: 393px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  /* Spacing follows the frame (top 101, header→card 56, card→Play 58, between buttons 28, bottom 64) on an
+     852px-tall screen and tightens smoothly to 36 / 36 / 32 / 20 / 24 at 740px (iPhone Safari with its toolbars),
+     so the whole screen fits without scrolling. On anything shorter, home.js scales it down evenly. */
+  /* Frame 217:61 puts the header 57px from the top; here it sits 14px lower (71px), tightening to 54px at 740px (still clear of "Back to app"). The bottom keeps the
+     farm's visible art (about 42% of its width) clear, so the buttons never sit on the barn. */
+  padding: calc(env(safe-area-inset-top) + clamp(54px, 15.18dvh - 58.3px, 71px)) 21px calc(env(safe-area-inset-bottom) + var(--farm-w) * 0.424 + 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.home[hidden] { display: none; } /* while Leaderboard or My Stats is open */
+
+/* ---------- Background: Figma frame 217:61 ---------- */
+
+/* Phones: the scene fills the screen at any width. Wider screens (500px+): it stays iPhone 16 Pro width (402px) in
+   the middle, with plain white around it. */
+:root { --scene-w: 100vw; --farm-w: max(403px, var(--scene-w)); } /* 403.35 wide in the 402 frame */
+@media (min-width: 500px) { :root { --scene-w: 402px; --farm-w: 403px; } } /* phones of any width fill the screen */
+.home-bg {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: min(100vw, var(--scene-w));
+  transform: translateX(-50%);
+  overflow: hidden;
+  z-index: 0;
+  background: linear-gradient(180deg, #FEC98A 0%, #FDE5A6 100%);
+  pointer-events: none;
+}
+.home[hidden] + .home-bg { display: none; }
+.home-farm {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--farm-w);
+  height: auto; /* 1681 × 936 art, so 224.6px tall at 403px wide, as in the frame */
+  transform: translateX(-50%);
+}
+/* A few of the game's normal clouds drifting slowly across the sky (home.js places and moves them). */
+.home-cloud {
+  position: absolute;
+  left: 0;
+  image-rendering: pixelated;
+  will-change: transform;
+}
+/* The game's bird at 2/3 of its game size (40 × 20 art drawn 26.7 × 13.3: exactly 2 device pixels per art pixel
+   on a 3× phone, so it stays crisp). */
+.home-bird {
+  position: absolute;
+  left: 0;
+  top: 0; /* home.js puts it midway between "CLIMB" and the character card */
+  width: calc(20px * 4 / 3);
+  height: calc(10px * 4 / 3);
+  image-rendering: pixelated;
+  visibility: hidden;
+  will-change: transform;
+}
+/* The game's bee, flying across in front of the farm now and then (home.js moves it). */
+.home-bee {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--farm-w) * 0.3);
+  width: 22px; /* the game's size: 22 × 18 art at one art pixel per CSS pixel */
+  height: 18px;
+  image-rendering: pixelated;
+  visibility: hidden;
+  will-change: transform;
+}
+
+/* ---------- ⓘ How to Play button: a plain outlined circle ---------- */
+
+.info-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  right: 12px;
+  width: 44px;  /* 24px icon, 44px touch target */
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--quiet);
+  cursor: pointer;
+}
+/* "Back to app" (top left): for looks only, as if the game sat inside a host app. It does nothing when tapped.
+   A small white pill with grey text, like the Leaderboard / My Stats buttons, level with the ⓘ button. */
+.app-back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 18px);
+  left: 16px;
+  height: 32px;
+  padding: 0 12px 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 100px;
+  background: #FFFFFF;
+  color: var(--quiet);
+  font: 500 13px/1 var(--sans);
+  letter-spacing: 0.3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+  cursor: default;
+}
+.app-back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.info-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.info-btn svg .dot { fill: currentColor; stroke: none; }
+/* Filled white with a grey "i", like the arrows and the Leaderboard / My Stats buttons. */
+.info-btn svg .ring { fill: #FFFFFF; stroke: none; }
+.info-btn svg { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1)); }
+
+/* The How to Play box sits over a light blur of the home screen. */
+.info-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px 4px;
+  background: rgba(58, 42, 32, 0.12);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.info-layer[hidden] { display: none; }
+
+/* ---------- Brand ---------- */
+
+/* Frame 217:61: a 337 × 102 box nudged 4.5px left of centre, logo then "CLIMB" 5px below it. */
+.brand { height: 102px; display: flex; flex-direction: column; align-items: center; gap: 5px; transform: translateX(-4.5px); }
+.eyebrow {
+  margin: 0;
+  padding-bottom: 8px;
+  font-size: 10px;
+  line-height: 15px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--brand-red);
+}
+/* A little smaller than the frame's 222 × 71 and nudged down, so it clears the top-left pill. */
+.wordmark { display: block; width: 200px; height: 64px; margin-top: 12px; object-fit: cover; }
+
+/* ---------- Character carousel ---------- */
+
+.picker {
+  /* The carousel → buttons block is centred between the header and the farm art: auto margins share the spare
+     height (with .actions' auto bottom margin); the padding keeps a minimum gap under CLIMB. */
+  margin-top: auto;
+  padding-top: 10px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  touch-action: pan-y; /* horizontal swipes change character */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.step {
+  flex: none;
+  width: 44px;  /* 26px arrow, 44px touch target */
+  height: 44px;
+  margin: 0 -9px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.step img { display: block; width: 26px; height: 26px; }
+.step.prev img { transform: scaleX(-1); }
+.step img { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1)); } /* white circle, grey arrow */
+
+.pattern {
+  position: relative;
+  flex: none;
+  width: 267px;
+  height: 267px;
+  border-radius: 15px;
+  overflow: hidden;
+  /* The character's print (assets/patterns/*.png, 4x size) is set from home.js. */
+  background: #F2F2F2 center / 100% 100% no-repeat;
+}
+.card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 210px;
+  height: 206px;
+  transform: translate(-50%, -50%);
+  padding: 33px 0 9px;
+  border-radius: 15px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 17px;
+  color: var(--card-text);
+  text-align: center;
+}
+.art { width: 100%; height: 65px; display: grid; place-items: center; }
+.art img { width: 100%; height: 65px; object-fit: contain; image-rendering: pixelated; }
+.art canvas { height: 46px; image-rendering: pixelated; }
+.art.hop { animation: hop 0.32s ease-out; }
+@keyframes hop { 40% { transform: translateY(-8px); } }
+.card-text { position: relative; width: 100%; height: 38px; }
+.name {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 22.5px;
+  white-space: nowrap;
+}
+.print {
+  position: absolute;
+  top: 32.1px;
+  left: calc(50% + 0.5px);
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: 200px;
+  font-size: 15px;
+  line-height: 15px;
+  letter-spacing: 0.25px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Buttons: Tap to Play (filled), Leaderboard + My Stats (outlined) ---------- */
+
+.actions {
+  margin-top: clamp(24px, 10.71dvh - 55.3px, 36px); /* card → Tap to Play */
+  margin-bottom: auto; /* see .picker */
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Leaderboard and My Stats share one line under Tap to Play: slightly smaller pills, each an icon + label,
+   with outlined icons drawn like the ⓘ button (1.5px round strokes in the text colour). */
+.actions-row { display: flex; gap: 10px; }
+.actions-row .pill {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.pill-icon { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.pill {
+  width: 100%;
+  height: 46px;
+  border-radius: 100px;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 22.5px;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+}
+.pill:active { transform: translateY(1px); }
+.play {
+  border: 0;
+  background: var(--brand-red); /* home.js may set this per character */
+  color: #FFFFFF;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+  transition: background-color 0.2s ease;
+}
+.outline { /* white pill with grey text and icon */
+  border: 1px solid #FFFFFF;
+  background: #FFFFFF;
+  color: var(--quiet);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Leaderboard + My Stats screens ---------- */
+
+.subscreen {
+  max-width: var(--scene-w); /* full width on phones; the same 402px column as Home on wider screens */
+  background: var(--bg);
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 16px) 21px calc(env(safe-area-inset-bottom) + 32px);
+}
+.subscreen[hidden] { display: none; }
+#screen-stats { padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
+#screen-stats .sub-title { margin: 4px 0 14px; }
+/* "Share your score" under the stats: Tap to Play's style and colour, with a share icon. Does nothing yet. */
+.share {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: default;
+}
+.share:active { transform: none; }
+.back {
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  font: 500 14px/22.5px var(--sans);
+  letter-spacing: 0.6px;
+  color: var(--quiet);
+  cursor: pointer;
+}
+.sub-title {
+  margin: 8px 0 20px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 39px;
+  color: var(--ink);
+}
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 86px; /* short enough that the whole My Stats screen fits on a phone without scrolling */
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.stat p { margin: 0; }
+.stat-label {
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 0.275px;
+  text-transform: uppercase;
+  color: var(--label);
+}
+.stat-value {
+  font-family: var(--serif);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.stat-value span:first-child { font-weight: 600; font-size: 32px; line-height: 34px; font-variant-numeric: lining-nums; }
+.stat-unit { font-weight: 400; font-size: 14px; line-height: 18px; color: var(--unit); }
+.stat-friend { display: flex; align-items: flex-end; gap: 10px; }
+.stat-friend img { height: 40px; image-rendering: pixelated; }
+.stat-friend-name { font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 22px; }
+.stat-empty { font-size: 13px; line-height: 19.5px; color: var(--quiet); }
+.stat-note { font-size: 12px; line-height: 16px; color: var(--quiet); }
+#stat-rank-note { white-space: nowrap; font-size: min(12px, 2.9vw); } /* one line, even for a 4-digit distance */
+
+/* How runs ended: one row per cause, with the obstacle's own game art, a count and a bar. */
+.stat-wide { grid-column: 1 / -1; min-height: 0; justify-content: flex-start; gap: 12px; }
+.endings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ending { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 4px 12px; }
+.ending-icon { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 28px; border-radius: 8px; background: #CFE0EC; }
+.ending-icon canvas { image-rendering: pixelated; }
+.ending-name { font-size: 14px; line-height: 20px; color: var(--ink); }
+.ending-count { font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 20px; color: var(--ink); font-variant-numeric: lining-nums; }
+.ending-bar { grid-column: 2 / -1; height: 6px; border-radius: 999px; background: #EDE9E4; overflow: hidden; }
+.ending-bar span { display: block; height: 100%; border-radius: inherit; background: var(--podium-text); }
+
+.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+/* White rows with the same soft shadow as the My Stats cards; #1 stays blue (below). */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10.57px;
+  padding: 10.57px 14.1px;
+  border-radius: 14.1px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.rank {
+  flex: none;
+  width: 24.66px;
+  height: 24.66px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--podium-fill);
+  color: var(--podium-text);
+  font-weight: 600;
+  font-size: 10.57px;
+  line-height: 15.86px;
+}
+.who { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.who-name {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.prize {
+  margin: 4px 0 1.5px;
+  padding: 1.5px 8px;
+  border-radius: 999px;
+  background: var(--podium-fill);
+  color: var(--podium-text);
+  font-weight: 600;
+  font-size: 10.5px;
+  line-height: 14px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.score { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
+.score-value {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 14.1px;
+  line-height: 21.14px;
+  color: var(--ink);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.score-unit { font-size: 12px; line-height: 15px; color: var(--unit); }
+/* Ranks 4–10 (full list): soft pink circle and tag. */
+.row.rest .rank, .row.rest .prize { background: var(--rest-fill); color: var(--rest-text); }
+/* Ranks 11–15: no prize, neutral circle. */
+.row.none .rank { background: #EFEFEF; color: var(--quiet); }
+/* The player's own row, wherever it lands. */
+.row.me { background: var(--rest-fill); } /* your row: the same light pink as the rank circles */
+.row.me.rest .rank, .row.me.rest .prize, .row.me.none .rank { background: #FFFFFF; } /* keep them visible on the pink */
+.row.me .who-name { font-weight: 700; }
+/* #1 row: soft blue. */
+.row.first { background: var(--first-row); }
+.row.first .rank { background: rgba(255, 255, 255, 0.2); color: #FFFFFF; }
+.row.first .who-name, .row.first .score-value { color: #FFFFFF; }
+.row.first .prize { background: var(--first-tag); color: #FFFFFF; }
+.row.first .score-unit { color: rgba(255, 255, 255, 0.6); }
+
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .art.hop { animation: none; }
+}
+
+/* How to Play box: Figma "Game-Design" frame 179:156. Shared by the pause menu (play.html) and the ⓘ button
+   on the home screen (index.html), so both stay identical. */
+.howto-card {
+  box-sizing: border-box;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: #3A2A20;
+  width: min(340px, 100% - 48px); /* ~30px of breathing room on each side of a phone screen */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 32px;
+  border-radius: 24px;
+  background: #FAF7F2;
+  filter: drop-shadow(0 20px 12.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.1));
+  text-align: center;
+}
+.back-link {
+  align-self: stretch;
+  font-family: inherit;
+  cursor: pointer;
+  margin: 0 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  color: #C8C8C8;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 22.5px;
+  letter-spacing: 0.6px;
+}
+.howto-art { width: 90px; height: 63px; display: grid; place-items: center; }
+.howto-art canvas, .howto-art img { max-width: 90px; max-height: 63px; image-rendering: pixelated; }
+.howto-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 39px;
+}
+.howto-main { margin: 0; max-width: 254px; font-size: 15px; line-height: 24.375px; }
+.howto-main strong { font-weight: 700; }
+.howto-note { margin: 0; font-size: 13px; line-height: 19.5px; color: #856F61; }
+.howto-keys { display: flex; gap: 16px; padding-top: 8px; }
+.howto-keys span {
+  width: 112px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 0.645px solid #856F61;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 19.5px;
+  letter-spacing: 1.3px;
+}
+
+/* Kiosk: lists still scroll by wheel, drag or touch, but no scrollbar is drawn. */
+html { scrollbar-width: none; }
+::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+  <!-- Home screen: Figma "Game-Design" frame 183:721, with the background and header from frame 217:61. Leaderboard and My Stats are screens within this page. -->
+  <main class="home" id="screen-home">
+    <button type="button" class="app-back" aria-disabled="true" tabindex="-1">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      DB App
+    </button>
+    <button type="button" class="info-btn" id="info" aria-label="How to play" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="ring" cx="12" cy="12" r="11"/><path d="M12 10.5v6.5"/><circle cx="12" cy="7.2" r="1.25" class="dot"/></svg>
+    </button>
+
+    <header class="brand">
+      <img class="wordmark" src="assets/ui/farm-friends-wordmark.png" alt="Farm Friends" width="222" height="71">
+      <p class="eyebrow">Climb</p>
+    </header>
+
+    <div class="picker" aria-label="Choose your climber">
+      <button type="button" class="step prev" id="prev" aria-label="Previous character">
+        <img src="assets/ui/arrow-circle.svg" alt="" width="26" height="26">
+      </button>
+      <div class="pattern" id="card">
+        <div class="card" aria-live="polite">
+          <div class="art" id="art"></div>
+          <div class="card-text">
+            <p class="name" id="name"></p>
+            <p class="print" id="print"></p>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="step next" id="next" aria-label="Next character">
+        <img src="assets/ui/arrow-circle.svg" alt="" width="26" height="26">
+      </button>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="pill play" id="play">Tap to Play</button>
+      <div class="actions-row">
+        <button type="button" class="pill outline" id="open-leaderboard">
+          <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5.5H5v1a3.5 3.5 0 0 0 3.2 3.5M16 5.5h3v1a3.5 3.5 0 0 1-3.2 3.5"/><path d="M12 13v4M9 20h6M9.5 17h5v3h-5z"/></svg>
+          Leaderboard
+        </button>
+        <button type="button" class="pill outline" id="open-stats">
+          <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 19.5v-6M12 19.5v-14M17.5 19.5v-9"/></svg>
+          My Stats
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Home background: Figma frame 217:61 (sunset gradient + farm along the bottom). -->
+  <div class="home-bg" aria-hidden="true">
+    <div id="home-clouds"></div>
+    <img class="home-farm" src="assets/ui/home-farm.png" alt="" width="1681" height="936">
+    <canvas class="home-bee" id="home-bee" width="22" height="18"></canvas>
+    <canvas class="home-bird" id="home-bird" width="40" height="20"></canvas>
+  </div>
+
+  <!-- Leaderboard screen -->
+  <section class="subscreen" id="screen-leaderboard" aria-labelledby="leaderboard-title" hidden>
+    <button type="button" class="back" data-back>← Back</button>
+    <h1 class="sub-title" id="leaderboard-title">Leaderboard</h1>
+    <ol class="rows" id="board"></ol>
+  </section>
+
+  <!-- My Stats screen -->
+  <section class="subscreen" id="screen-stats" aria-labelledby="stats-title" hidden>
+    <button type="button" class="back" data-back>← Back</button>
+    <h1 class="sub-title" id="stats-title">My Stats</h1>
+    <div class="stats-grid">
+      <div class="stat">
+        <p class="stat-label">Top Score</p>
+        <p class="stat-value"><span id="stat-best">0</span> <span class="stat-unit">ft</span></p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Leaderboard Rank</p>
+        <p class="stat-value"><span id="stat-rank">–</span></p>
+        <p class="stat-note" id="stat-rank-note"></p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Runs Played</p>
+        <p class="stat-value"><span id="stat-runs">0</span></p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Average Run</p>
+        <p class="stat-value"><span id="stat-avg">0</span> <span class="stat-unit">ft</span></p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Total Climbed</p>
+        <p class="stat-value"><span id="stat-total">0</span> <span class="stat-unit">ft</span></p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Favorite Friend</p>
+        <div class="stat-friend" id="stat-friend"></div>
+      </div>
+      <div class="stat stat-wide">
+        <p class="stat-label">How Your Runs Ended</p>
+        <ul class="endings" id="stat-endings"></ul>
+      </div>
+    </div>
+    <!-- For looks only: sharing isn't built yet, so this does nothing when tapped. -->
+    <button type="button" class="pill play share" id="share-score" aria-disabled="true">
+      <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M6 11H5v9h14v-9h-1"/></svg>
+      Share your score
+    </button>
+  </section>
+
+  <!-- How to Play (same box as in the pause menu), opened by the ⓘ button. -->
+  <div class="info-layer" id="howto-layer" hidden>
+    <div class="howto-card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+      <button type="button" class="back-link" id="howto-close">← Back</button>
+      <div class="howto-art" id="howto-art"></div>
+      <h2 class="howto-title" id="howto-title">How to Play</h2>
+      <p class="howto-main">Tap the <strong>left</strong> or <strong>right</strong> side of the screen to steer your Farm Friend left or right as they bounce upward.</p>
+      <p class="howto-note">Don't fall off the platforms!<br>Avoid bees, birds, owls, &amp; wind!</p>
+      <div class="howto-keys" aria-hidden="true">
+        <span>← Left</span>
+        <span>Right →</span>
+      </div>
+    </div>
+  </div>
+<script>
+/*__KIOSK_BUNDLE__*/
+
+(() => {
+  const arcade = parent.parent;
+  let last = 0;
+  const activity = () => {
+    const now = Date.now();
+    if (now - last > 400) { last = now; arcade.postMessage({ type: 'arcade:activity' }, '*'); }
+  };
+  for (const type of ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'wheel']) {
+    addEventListener(type, activity, { capture: true, passive: true });
+  }
+  addEventListener('keydown', (e) => {
+    if (e.key.startsWith('Esc')) arcade.postMessage({ type: 'arcade:exit' }, '*');   // the arcade's key, not ours
+  }, true);
+})();
+
+window.addEventListener('keydown', (e) => {
+  const $ = (id) => document.getElementById(id);
+  if (!$('howto-layer').hidden) return;                 // its own handler closes it
+  if (!$('screen-home').hidden) {
+    if (e.key === 'ArrowLeft') $('prev').click();
+    else if (e.key === 'ArrowRight') $('next').click();
+    else if (e.key === 'Enter' || e.key === ' ') $('play').click();
+    else return;
+  } else if (e.key === 'Enter' || e.key === ' ' || e.key === 'Backspace') {
+    document.querySelector('.subscreen:not([hidden]) [data-back]')?.click();
+  } else return;
+  e.preventDefault();
+});
+window.__kioskStart("home");
+</script>
+</body>
+</html>
+</template>
+
+<template id="page-play">
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>Farm Friends Climb</title>
+<style>
+
+/* Bundled fonts (kiosk/fonts/, see README.txt there). Until they're added, text falls back to Georgia / the system font. */
+@font-face { font-family: "Inter"; src: url("fonts/Inter.ttf") format("truetype"); font-weight: 100 900; font-style: normal; }
+@font-face { font-family: "Playfair Display"; src: url("fonts/PlayfairDisplay.ttf") format("truetype"); font-weight: 400 900; font-style: normal; }
+@font-face { font-family: "Playfair Display"; src: url("fonts/PlayfairDisplay-Italic.ttf") format("truetype"); font-weight: 400 900; font-style: italic; }
+:root {
+  --page-bg: #FFFFFF; /* the space around the game */
+  --rotate-bg: #1d2b3a;
+  --ink: #1d2b3a;
+  --panel: rgba(255, 255, 255, 0.92);
+  --accent: #e76f51;
+  --brand-red: #8B2A3A; /* primary buttons, shared with the home screen */
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--page-bg);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  font-family: system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  color: var(--ink);
+}
+
+/* The real visible screen. dvh tracks mobile browser chrome showing/hiding; vh is the fallback. */
+#viewport {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Sized and positioned by fitStage() in main.js: fills #viewport, or letterboxes for unusual shapes. */
+#stage {
+  position: absolute;
+  overflow: hidden;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ---------- HUD: Figma 179:176 (Climbed) + 179:181 (pause button) ---------- */
+
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px 0;
+  pointer-events: none;
+}
+
+/* Solid white with grey text and icon, shared by the score card and the pause button, like the home screen's
+   white buttons. */
+.climbed, .pause-btn {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.climbed {
+  min-width: 74.8px;
+  padding: 6px 12px;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+.climbed-label {
+  box-sizing: border-box;
+  margin: 0;
+  height: 24px;
+  padding-top: 3.6px;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 0.275px;
+  text-transform: uppercase;
+  color: #A8A8A8;
+}
+.climbed-value {
+  margin: 0;
+  height: 28px;
+  white-space: nowrap;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  color: #A8A8A8;
+}
+#hud-score {
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 27.5px;
+  font-variant-numeric: lining-nums;
+}
+.climbed-unit { font-weight: 400; font-size: 13px; line-height: 16.25px; color: #A8A8A8; }
+
+/* A circle, like the home screen's arrows and ⓘ button. */
+.pause-btn {
+  pointer-events: auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  cursor: pointer;
+}
+.pause-btn img { display: block; width: 12px; height: 12px; }
+.pause-btn.hidden { display: none; }
+
+/* ---------- Pause: Figma 179:144 (menu) + 179:156 (How to Play) ---------- */
+
+/* A light blur over the game: enough to set the card apart while the climb stays visible behind it. */
+.pause-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px 4px;
+  background: rgba(58, 42, 32, 0.12);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: #3A2A20;
+}
+
+.pause-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  min-width: 189px;
+  padding: 32px;
+  border-radius: 24px;
+  background: #FAF7F2;
+  filter: drop-shadow(0 20px 12.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.1));
+}
+.pause-card.hidden, .howto-card.hidden { display: none; }
+.pause-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-size: 24px;
+  line-height: 36px;
+}
+.pause-layer button { font-family: inherit; cursor: pointer; }
+.pause-layer .pill {
+  margin: 0;
+  min-width: 125px;
+  padding: 15px 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #8B2A3A;
+  color: #FFFFFF;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 22.5px;
+  letter-spacing: 0.6px;
+  box-shadow: none;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+}
+.text-link {
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: #6B4A3A;
+  opacity: 0.7;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.35px;
+}
+.text-link.underline { text-decoration: underline; text-underline-offset: 3px; }
+.text-link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.text-link svg .dot { fill: currentColor; stroke: none; }
+
+
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.hidden { display: none !important; }
+
+/* ---------- Game over: styled to match the pause menu (Figma 179:144) ---------- */
+
+.over-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 240px;
+  padding: 32px;
+  border-radius: 24px;
+  background: #FAF7F2;
+  filter: drop-shadow(0 20px 12.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.1));
+  text-align: center;
+}
+.over-card p { margin: 0; }
+.best-banner {
+  display: none;
+  margin-bottom: 6px !important;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B2A3A;
+}
+#screen-over.is-best .best-banner { display: block; }
+.over-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 39px;
+}
+.over-cause { margin-top: 4px !important; font-size: 13px; line-height: 19.5px; color: #856F61; }
+.over-score {
+  margin-top: 14px !important;
+  font-family: "Playfair Display", Georgia, serif;
+  white-space: nowrap;
+}
+#over-score {
+  font-weight: 600;
+  font-size: 56px;
+  line-height: 60px;
+  font-variant-numeric: lining-nums;
+}
+.over-unit { font-weight: 400; font-size: 20px; line-height: 24px; color: #8B6A5A; }
+.over-best {
+  margin-top: 4px !important;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 0.275px;
+  text-transform: uppercase;
+  color: #A8A8A8;
+}
+.over-card .pill { margin-top: 24px; }
+.over-card .text-link { margin-top: 20px; }
+
+.countdown { pointer-events: none; }
+#countdown-number {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  font-size: 96px;
+  line-height: 1;
+  /* Dark ink rather than white: with no shadow, white would vanish into the pale sunset sky of the start. */
+  color: #3A2A20;
+  font-variant-numeric: lining-nums;
+}
+/* main.js sets the colour to the selected character's (the same as its Tap to Play button). */
+#countdown-number.go { font-style: italic; font-weight: 400; }
+#countdown-number.pop { animation: countdown-pop 0.7s ease-out; }
+@keyframes countdown-pop {
+  0% { transform: scale(1.6); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #countdown-number.pop { animation: none; }
+}
+button:disabled { opacity: 0.5; }
+
+#rotate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background: var(--rotate-bg);
+  color: #fff;
+  font-size: 18px;
+  text-align: center;
+  padding: 24px;
+}
+@media (orientation: landscape) and (pointer: coarse) {
+  #rotate { display: flex; }
+}
+
+/* How to Play box: Figma "Game-Design" frame 179:156. Shared by the pause menu (play.html) and the ⓘ button
+   on the home screen (index.html), so both stay identical. */
+.howto-card {
+  box-sizing: border-box;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: #3A2A20;
+  width: min(340px, 100% - 48px); /* ~30px of breathing room on each side of a phone screen */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 32px;
+  border-radius: 24px;
+  background: #FAF7F2;
+  filter: drop-shadow(0 20px 12.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.1));
+  text-align: center;
+}
+.back-link {
+  align-self: stretch;
+  font-family: inherit;
+  cursor: pointer;
+  margin: 0 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  color: #C8C8C8;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 22.5px;
+  letter-spacing: 0.6px;
+}
+.howto-art { width: 90px; height: 63px; display: grid; place-items: center; }
+.howto-art canvas, .howto-art img { max-width: 90px; max-height: 63px; image-rendering: pixelated; }
+.howto-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 39px;
+}
+.howto-main { margin: 0; max-width: 254px; font-size: 15px; line-height: 24.375px; }
+.howto-main strong { font-weight: 700; }
+.howto-note { margin: 0; font-size: 13px; line-height: 19.5px; color: #856F61; }
+.howto-keys { display: flex; gap: 16px; padding-top: 8px; }
+.howto-keys span {
+  width: 112px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 0.645px solid #856F61;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 19.5px;
+  letter-spacing: 1.3px;
+}
+
+/* Kiosk: lists still scroll by wheel, drag or touch, but no scrollbar is drawn. */
+html { scrollbar-width: none; }
+::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="stage">
+      <canvas id="game"></canvas>
+
+      <!-- HUD: Figma frames 179:176 (score) and 179:181 (pause button). -->
+      <div id="hud">
+        <div class="climbed" aria-live="off">
+          <p class="climbed-label">Climbed</p>
+          <p class="climbed-value"><span id="hud-score">0</span> <span class="climbed-unit">ft</span></p>
+        </div>
+        <button type="button" class="pause-btn" id="btn-pause" aria-label="Pause">
+          <img src="assets/ui/pause-icon.svg" alt="" width="12" height="12">
+        </button>
+      </div>
+
+      <!-- Pause: Figma frames 179:144 (menu) and 179:156 (How to Play), over a light blur of the game. -->
+      <div id="screen-pause" class="pause-layer hidden">
+        <div class="pause-card" id="pause-menu" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <p class="pause-title" id="pause-title">Paused</p>
+          <button type="button" class="pill" id="btn-resume">Resume</button>
+          <button type="button" class="text-link" id="btn-howto">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 7.2v4.3"/><circle cx="8" cy="4.6" r="0.9" class="dot"/></svg>
+            How to Play
+          </button>
+          <button type="button" class="text-link underline" id="btn-quit">Quit to Menu</button>
+        </div>
+
+        <div class="howto-card hidden" id="howto" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+          <button type="button" class="back-link" id="btn-back">← Back to Paused menu</button>
+          <div class="howto-art" id="howto-art"></div>
+          <h2 class="howto-title" id="howto-title">How to Play</h2>
+          <p class="howto-main">Tap the <strong>left</strong> or <strong>right</strong> side of the screen to steer your Farm Friend left or right as they bounce upward.</p>
+          <p class="howto-note">Don't fall off the platforms!<br>Avoid bees, birds, owls, &amp; wind!</p>
+          <div class="howto-keys" aria-hidden="true">
+            <span>← Left</span>
+            <span>Right →</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-countdown" class="overlay countdown hidden" aria-live="assertive">
+        <p id="countdown-number"></p>
+      </div>
+
+      <!-- Game over: same card style and blur as the pause menu. -->
+      <div id="screen-over" class="pause-layer hidden">
+        <div class="over-card" role="dialog" aria-modal="true" aria-labelledby="over-title">
+          <p class="best-banner">New personal best!</p>
+          <h1 class="over-title" id="over-title">Game over</h1>
+          <p class="over-cause" id="over-cause"></p>
+          <p class="over-score"><span id="over-score">0</span> <span class="over-unit">ft</span></p>
+          <p class="over-best">Best <span id="over-best">0</span> ft</p>
+          <button type="button" class="pill" id="btn-restart">Play again</button>
+          <button type="button" class="text-link underline" id="btn-home">Home</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="rotate">
+    <p>Please rotate your phone to portrait.</p>
+  </div>
+<script>
+/*__KIOSK_BUNDLE__*/
+
+(() => {
+  const arcade = parent.parent;
+  let last = 0;
+  const activity = () => {
+    const now = Date.now();
+    if (now - last > 400) { last = now; arcade.postMessage({ type: 'arcade:activity' }, '*'); }
+  };
+  for (const type of ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'wheel']) {
+    addEventListener(type, activity, { capture: true, passive: true });
+  }
+  addEventListener('keydown', (e) => {
+    if (e.key.startsWith('Esc')) arcade.postMessage({ type: 'arcade:exit' }, '*');   // the arcade's key, not ours
+  }, true);
+})();
+window.__kioskStart("play");
+</script>
+</body>
+</html>
+</template>
+
+<script type="text/plain" id="kiosk-bundle">// ---- Farm Friends Climb, bundled for the offline kiosk by scripts/build_kiosk.py. Edit js/, not this. ----
+(() => {
+const __defs = {}, __cache = {};
+function __define(name, factory) { __defs[name] = factory; }
+function __require(name) {
+  if (!__cache[name]) { const exports = {}; __cache[name] = exports; __defs[name](exports); }
+  return __cache[name];
+}
+__define('config', (__exports) => {
+// All gameplay tuning lives here. Units are virtual (art) pixels and seconds.
+// World y grows downward like the screen, so climbing means y decreasing.
+
+// The game is always 201 art pixels wide. Its height follows the screen's shape (set by main.js via
+// setViewHeight) so the canvas fills the whole viewport. On iPhone 16 Pro that's 2 CSS px = 6 physical px
+// per art pixel; 437 is its full-screen height. Shapes outside MIN–MAX letterbox instead.
+const VIEW_W = 201;
+let VIEW_H = 437;
+const VIEW_H_MIN = 280;
+const VIEW_H_MAX = 480;
+function setViewHeight(h) {
+  VIEW_H = h;
+}
+
+const FIXED_DT = 1 / 120;
+const MAX_FRAME_DT = 0.1; // clamp after tab switches / hitches
+
+// Placeholder-square size, and the size character art is scaled to so proportions stay the same.
+const PLAYER = {
+  w: 14,
+  h: 14,
+  footInset: 2, // placeholder: landing hitbox is slightly narrower than the body
+  hitInset: 3,  // placeholder: obstacle hitbox shrink, so grazes feel fair
+  spriteHeight: 24,   // characters are at most this tall (the smallest size where every animal's eye survives)...
+  spriteMaxWidth: 31, // ...and at most this wide
+};
+
+// Physics shared by every character.
+
+const PHYSICS = {
+  gravity: 520,
+  bounceVel: 340,  // apex ≈ 111 px above the platform
+  springVel: 580,  // apex ≈ 323 px
+  steerAccel: 900, // while a side is held
+  tapImpulse: 60,  // instant nudge on each tap
+  maxVx: 140,
+  drag: 5,         // horizontal slow-down per second when not steering
+};
+
+const PLATFORM = {
+  w: 34,
+  h: 6,
+  moveSpeedMin: 30,
+  moveSpeedMax: 60,
+  breakTime: 0.3, // fade-out after a breakable is used
+};
+
+const OBSTACLE = {
+  minHeight: 800,    // world px climbed before any obstacle can appear
+  minSpacing: 260,   // vertical px between obstacles
+  chanceMin: 0.05,   // per platform spawned, at minHeight
+  chanceMax: 0.16,   // per platform spawned, at full difficulty
+  hitInset: 2,
+  gustShare: 0.4,      // share of obstacles that are wind gusts (any time of day)
+  butterflyShare: 0.5,  // share of daytime flyers that are butterflies (the rest are crows)
+  // Extra butterflies early in the climb, on top of the normal mix: this chance per cloud applies
+  // from butterflyEarlyFrom, fading to nothing by butterflyEarlyUntil (world px; 10 px = 1 point).
+  butterflyEarlyFrom: 250,
+  butterflyEarlyUntil: 3000,
+  butterflyEarlyChance: 0.12,
+  // Time-of-day swap, in sky positions (0-based colour stop index): crows + butterflies by day,
+  // owls by night. Between these, the chance a flyer is an owl ramps smoothly 0 → 1.
+  owlsFrom: 5.5,     // halfway between #3D4787 and #1D2559
+  owlsFull: 6.5,     // halfway between #1D2559 and #091040
+};
+
+// Bounce tempo: the auto-bounce plays in slow motion early in the climb and speeds up with the sky,
+// reaching normal speed (1) at full night and holding there. It slows time for the jump arc only, so
+// bounce and spring heights never change, and steering is unaffected.
+const TEMPO = {
+  start: 0.75,  // speed at the start of a run (0.75 = each bounce takes a third longer)
+  fullAt: 7,    // sky position (0-based colour stop) where it reaches 1: #091040, full night
+};
+
+// Spring-launch puff: a few soft particles that scatter and fade.
+const PARTICLES = {
+  count: 10,
+  speedMin: 35,
+  speedMax: 75,
+  lifeMin: 0.3,
+  lifeMax: 0.5,
+  drag: 4, // per second
+};
+
+const DIFFICULTY_HEIGHT = 8000; // world px at which difficulty maxes out
+
+const GROUND = {
+  height: 19,              // grass line (where the player stands) to the bottom of the farm art / screen: just in front of the fence
+  artHeight: 85,           // farm art height in game pixels (201 wide × its aspect); used until the image loads
+  firstGapFraction: 0.55,  // first cloud sits at 55% of the bounce apex above the grass (≈61 px, inside the normal 24–91 gap range)
+  firstCloudJitter: 6,     // ± px sideways from dead center, but always under the player's feet
+};
+
+const CAMERA_ANCHOR = 0.42; // camera keeps the climbing player at this fraction of screen height
+
+const SCORE_PER_PX = 0.1; // 10 world px = 1 point
+
+// Sky fades sunset → night through these stops, one every SKY_STEP points of climb,
+// blending smoothly between neighbours and holding on the last (full night at 7 × 80 = 560 points).
+const SKY_COLORS = [
+  '#FDE9AA', '#FFC98A', '#F3AFA0', '#CAA6B7', '#7683DC', '#3D4787', '#1D2559', '#091040',
+];
+const SKY_STEP = 80;
+
+const STARS = {
+  fadeFrom: 4,     // sky position (0-based stop index) where stars start to appear: #7683DC
+  fullAt: 6,       // fully visible by #1D2559
+  parallax: 0.3,   // stars scroll at 30% of camera speed, so they feel far away
+  cell: 24,        // one potential star per 24×24 px cell
+  density: 0.4,    // chance a cell has a star
+};
+Object.defineProperties(__exports, { VIEW_W: { get: () => VIEW_W, enumerable: true }, VIEW_H: { get: () => VIEW_H, enumerable: true }, VIEW_H_MIN: { get: () => VIEW_H_MIN, enumerable: true }, VIEW_H_MAX: { get: () => VIEW_H_MAX, enumerable: true }, setViewHeight: { get: () => setViewHeight, enumerable: true }, FIXED_DT: { get: () => FIXED_DT, enumerable: true }, MAX_FRAME_DT: { get: () => MAX_FRAME_DT, enumerable: true }, PLAYER: { get: () => PLAYER, enumerable: true }, PHYSICS: { get: () => PHYSICS, enumerable: true }, PLATFORM: { get: () => PLATFORM, enumerable: true }, OBSTACLE: { get: () => OBSTACLE, enumerable: true }, TEMPO: { get: () => TEMPO, enumerable: true }, PARTICLES: { get: () => PARTICLES, enumerable: true }, DIFFICULTY_HEIGHT: { get: () => DIFFICULTY_HEIGHT, enumerable: true }, GROUND: { get: () => GROUND, enumerable: true }, CAMERA_ANCHOR: { get: () => CAMERA_ANCHOR, enumerable: true }, SCORE_PER_PX: { get: () => SCORE_PER_PX, enumerable: true }, SKY_COLORS: { get: () => SKY_COLORS, enumerable: true }, SKY_STEP: { get: () => SKY_STEP, enumerable: true }, STARS: { get: () => STARS, enumerable: true } });
+});
+__define('storage', (__exports) => {
+// Local-only persistence. Storage can be unavailable (private mode, blocked site data), so every access is guarded.
+const BEST_KEY = 'ffc.best';
+
+function loadBest() {
+  try {
+    return Number(localStorage.getItem(BEST_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveBest(score) {
+  try {
+    localStorage.setItem(BEST_KEY, String(score));
+  } catch {
+    // Not persisted this session; the in-memory best still works.
+  }
+}
+
+// The character chosen on the Character tab, shared with the play page. Falls back to the default.
+const CHARACTER_KEY = 'ffc.character';
+
+function loadCharacterId(fallback) {
+  try {
+    return localStorage.getItem(CHARACTER_KEY) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveCharacterId(id) {
+  try {
+    localStorage.setItem(CHARACTER_KEY, id);
+  } catch {
+    // Not persisted; the choice still applies until the page is reloaded.
+  }
+}
+
+// Lifetime stats for the My Stats screen: runs played, total height climbed, runs per character, and how runs
+// ended (fall, crow, butterfly, owl, gust).
+const STATS_KEY = 'ffc.stats';
+
+function loadStats() {
+  const empty = { runs: 0, totalFt: 0, byCharacter: {}, byCause: {} };
+  try {
+    const s = JSON.parse(localStorage.getItem(STATS_KEY));
+    return s && typeof s.runs === 'number' ? { ...empty, ...s } : empty;
+  } catch {
+    return empty;
+  }
+}
+
+function recordRun(score, characterId, cause) {
+  const s = loadStats();
+  s.runs += 1;
+  s.totalFt += score;
+  s.byCharacter[characterId] = (s.byCharacter[characterId] || 0) + 1;
+  if (cause) s.byCause[cause] = (s.byCause[cause] || 0) + 1;
+  try {
+    localStorage.setItem(STATS_KEY, JSON.stringify(s));
+  } catch {
+    // Not persisted; stats simply won't include this run.
+  }
+}
+Object.defineProperties(__exports, { loadBest: { get: () => loadBest, enumerable: true }, saveBest: { get: () => saveBest, enumerable: true }, loadCharacterId: { get: () => loadCharacterId, enumerable: true }, saveCharacterId: { get: () => saveCharacterId, enumerable: true }, loadStats: { get: () => loadStats, enumerable: true }, recordRun: { get: () => recordRun, enumerable: true } });
+});
+__define('characters', (__exports) => {
+// Playable Farm Friends. To add one: drop a transparent PNG into assets/characters/ and add an entry below.
+// The art is trimmed, scaled to game size and given a silhouette hitbox automatically (see sprites.js).
+// Every character plays with the same physics (PHYSICS in config.js).
+const { PLAYER, PHYSICS } = __require('config');
+
+const CHARACTERS = {
+  // name: the animal. print: the Farm Friends print it wears, shown with its pattern on the home carousel.
+  // color: the card's name/print colour (and Tap to Play's), sampled from that print; Cow and Barn Mouse use a
+  // deeper shade of their print's colour so white button text stays readable.
+  // Order alternates green / red / blue so no two neighbours in the carousel (which wraps) look alike.
+  // sprite: finished game-size sprite.
+  sheep: { name: 'Sheep', print: 'Scottish Plaid', pattern: 'assets/patterns/scottish-plaid.png', color: '#9A9A7B', sprite: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAYCAYAAAACqyaBAAAFL0lEQVR42rWWW2wb5RLHf7NuaBynTrJex5ukJaENpRVpkUClR+YIxEN5QZSjIl4R9HARD1weQICEBC+AQIBA8IJQ4RDOCxdxDxL3gwSl0JRw1BZoElPHaVI7Xq9vSWO39Q4PdjcESAmIjmVp7W/2+3/zn5n/N3AGbf/Hr2hudLcCDA8N6q/X5UwB735rl56/eTMqoJ5SzudpM03a1m6RMwb+5RvP6+aLLgTAU6XsFlD1WGV2IGKA5/kHMP5O4D3vvqhn9/ZRcgsgUMrlyRfyBAIrAEE9j6KbZ2LvBwqwYlm5++Q17enrxVx3sc/UgU9f1e7eXsx1WwXgq7d3aU/3akSE2+5+GDsWo1Qq8cgDt1Oreey88R6CLUFuvX47a9as/mPah4cGdcOmARRAoei6FAt5zl67jvpfCgiH9u+nM2YjItx576MEm5t56bY7uP6ZpynNHSMa6UA9CLWGUFWeffm/v0/7kZGPdPq7T3Tve4O68YILEMPAMAyMgEFH1OKc9esxAgGKbh5DDAwR7K4urG4bq8umevw4weYgpckUxfIsltmBIQZD//scFAwRdl6zQxdF/s17L6mIsHHTABIIgN8YCx1SdguEIyaFrANAezTir+YzWcxYJ4qSz8xw9/1PsvKsswgEAoiA5ykighhCsDlIpVpdiNwQobu7h+R4ArTh2PgiwlQyhapHKefSHrVoj1qA+B8AN5NBEErlEo8/dBezc3OoKqrqpynY3IIRMEgemaqDf/v+y7ph00AdSHVRKajWIU7WTtBmWYQjpt+kbjrt+7WGQzQw6Os/l/ZohKceu5diucQpaBSMgFCr1QiuXImxb2hQ1286n4Lj4mQd1m44r34IFFAK2Rz5GYf2to5FtVGZm6VSqQLK/LFZVra0YnXZ5PwDCYYYDL74JOVSmYyT44U33pTZcpnRxGHe+ewzkX1Dg9pp26TTR1mzprcRmTZodDBjUQpZhzYrgjszQyTWWadbhMmfDiMCPX19cIo1gdzRNGYs5u+jnsd3e/fxz2tuWtRdxkVXXidT01OAEI6YFB2nQbtgxqLk0mnao1Y9/7+oUVVl9Tl9PtWC1g+AELFtJhKJhp9HtTL/G2C/1f5x1Q1yapM2yyI/k/UdIrbtP5t27DdaICJMT0w0im/B+vr7Sfw4StktcOj7Q7+rI361d3d34WbqoB2dUXKZzJLik0svrPX09RIOhynlXV+1ym4eROjfuIGfEgni/9oppwVffeE2QaCQdUiOjxGJxRbrn8Bk4nCDjRhOOo0zfRSAVabJieoJ3zUcMf2109kihZtKJZlMJeld199ojQWBOTgyQji8ilLOpZRzsWwbDANQ3EyWiB1blC7DMBj5eg+X7LhJlgW+9ep/S72SoeDk/OKaTk4semlyMsXY9wexYp0Us7lGa9bTBVB0cjQ1Nf25yAG2br9BRvZ8TbsVAZSDI/+nNRyu6/6RSSaSh7HtbiJWFDfrkEolOVk74SvS9mtvITE+xvjYKJfsuPmvzQvb4nFNDX+ol1+8Ra+Ix/WKeFx/OTDsfmuX//uL15/T1PAHmhr+ULfF43rVZZfqcjCWvM9rtZPc9+DTCBBuDTV6vG6/zuODT/yHmGWBeqwKBgkGm5cV4JKTzIrACkItIRSoVKsEAksPPSJCtVKhJdhCeX6egLG8AWnJyMOtIX4YHwMgdTRNS7BlyU2cfIFqpUIm51Cem2fu2BxbBgZ074ED8pciH02mQKFy/DhtoRCq3pKbtAabGyouNDU1oSr+NXo6+xlJ1C5nt341UgAAAABJRU5ErkJggg==', facing: 'right' },
+  duck: { name: 'Mallard Duck', print: 'Merlot', pattern: 'assets/patterns/merlot.png', color: '#621A28', sprite: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAYCAYAAADpnJ2CAAAEKElEQVR42q2WbWyTVRTHf+fZBi1bu+6FbQhtx9gLEBgaQYNjfsCY+EJiBDEEM4wRgx8QwbgYGUYUhIgiJihEBgTQaCJRg8REUSAjmyETkwHbYF1hbx3rKLh1Y5Sx9jl+AAs6S7ak59s9N8//d86559z7CHE2Z2mhCuCa6QJVqncelbv3Ja6wkgJNm5wNYoBA8fSJiAhfvvV1lGPECzapJF9Tc7MAmOzKxHe4LppP2ZalGvcMXfMK1ObMIi93PCIGqhF6+65zfH4PWGwkPn1c4pohgGmaXGwNYKqJItiSrQy0tYIZYejwoxr+sVTjBxRBFFShpTVAS1uAMzWN9PcO0lVbh6CIxLGkfR0Nev+Lz2PJdiAiBNv8+Gq8w/TjluGSx57A88MR5HZjjEkd9/+FGKng2vnTdO6DedgcKbcrKFTXNKIKBe4M9h+9QIZtDHuPnQC5JZtknyAjBm5fPFunTnVy6Fg9013pFORPpO50CwA3IxFKS2cgAlVVZ8nJtKGmcuhUJ9l2CwK405Np/2uAylrPvQe/smyujk1KIHhtEATczkysVgtn61uJmDBnTgF/1DZzMxKmtGQGYghVVfVkZaQgwMmmAIYI7oxkRITfLwT4qakjykkMeqv1lUXL+Pb0RQE413YVARThhfJyih95HEEIbVrB+eZO+nr6mVaUQ0qqneqaBhITEpg108nJP1tx56TisCbR3nuD3s4g+RlWVP/TNALs/u4Ai4vzFKBoooMiVya5WSmUfbOPkvdeZdbrS3myYhf3ZTk4daaN0MAggjL7gSkAnDt/ibV793GyOUBbT4jcNCtT0sehCkORyPAz7PNWKyIsX1iGqrBu89s8s2Ur1uw0LKkWksYmMdAzQHKmjWtX+nk/bSwigrf1KiKwcvsXdHo9IAYVq9fhTrOSIEJ7MESg/wa/ejtl2BnegS5DgXc2r2XBlo9JmZBO6HKQcTkOQpeDrHc66PAHAVizcxdg4PN6okIVb7yLO9WCLxgibCoHz7bEbpo+b7UCvLxwGSKCqhKOhHn2YTdDYZOkRIOO7iBrdlQCgs/ruSMigpomYiRQsXodqtB/4yY/N/sk5uDb8+cJKHu+PxD1fbBtI450G0s2bKO9O8jqz3ejKnQ0e6Ix+/1+zEgEBZoaG1i+8iWuDw4Ng8WcwxNffaSZ2dm3ItJb0bsKCwFQFXwXPMhtf3e3n4zx4zFE8DQ2Yoiw4LVNMec75saRyg2KCIYhTHK6EEP+9YG/y4/IPyslcKkLBBa+ufWet9eIrrbf9mxUEYNJDR8iT32GInR3daG/rOdK8QoWlX8S1z+HqNWvsuvQ/sLoKDessmtoh1NHozGq1yKicLe6GGDqqHijA6oCEZPBylwFmP5pn1xsCtK1IU3DB+eMiDzq2nvK7YpA3kNTSXyuVmL5YtnfzJOkEdb1/XQAAAAASUVORK5CYII=', facing: 'right' },
+  cow: { name: 'Cow', print: 'Ribbon Stripe', pattern: 'assets/patterns/ribbon-stripe.png', color: '#7798B6', sprite: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAXCAYAAADz/ZRUAAAEtUlEQVR42rWWW2xUVRSGv7XPmdKZ6XSGUokI0UGhPFB9QPQF8IGYGE3E8KhBpVANIQYVbBOKxKRqyqWFGiFGSikkmgAJiRIlUXiQKNpIRAWKyB0TLrUw7Vw6M73MXj6cduhEoJDAfjpnX9a/1///Z60D93EcaHpDR77vb3qz4N3cT/D+gUEuf9eYB6yY9ljBuns/QKvnPKlbf/xNXMcllUqTvtiuIIgIr8ysVBHhy8PHRO418KLZM1RESPT2ISKUl5YA0LijGQFem78YAYqM4Z6Dv1BZoV+vrCPdnaC6bQsPlIYAEIHG7c0oQuDhp+WWtFfNmqGDVhHAiCGHpbS4mGGePmiuR0QoDoR45/WlKKDAmk0NJONxXlq6Cr/PR3k4iAB7O07xYmUFA339+IqKbm64rqPf66XD3xQAgxIu9nvA6ukWDIXxB0PkbD8+Y3BEyPblEAQBHONijHdTBeZVViBANpNFUZJnflKgkPY/v92mH65uYlxpEEccUtksIf+NjEFY29oMqgzmBqitXg5AojfrRVKP396+ASaMLcFai+u4CLC2tQnBQRzB1/43iNyg/Z9fvtLu6zHGlQYR8QgJFvmITixnYe0yAqESUIOgpJJxVi97HxGDqkUEIoEACMRSGVwDtfW1lI0vx+e6qIAqyMGjFJUEWFG/BnckeE8sxnu1DUTLwziOQVGadmxCwTupgFhUjfc8RFsinSUcDMAQ5SJKsa8IVUt/JouO8eMb4yDW4nMcbLaPxlW1oEOGO3Nwt6ZTSRBwhmgaZnH5wrdwjYOqsr5tI4ilJBLJSxUKFIO1qDHk1GKMUL+2jlAkglrLH+2HmLuoLi9cx8paBZjesE7yhhPjsL/jtOTsIFYt69s2UlP1tmcaVQShpsrTWK2yYfsmrFqS6Sw9mSzx3jTJdD9qlXBZGSLC1UuXCoCHQac3rJO824t8N+yfyvSzoe1TBCdvx2FrikBN1btDk94FWnZv9Zwtniwtu1rwl4QIhEpZU//JbWuCAcik0zz+/EIB2LLzMxALwLrWZhLpLD29aXRY54KimANVtuxsQUQK1pYsWDJqQXIB6mo+GjEloJ7hMskEAI5jSGYzbP5iMyIOVpVk7Dpqlcj4cYDD57taEOvdsDcRx+bsqOVTqmbN0EQmy54jJwQgee5nNeIQj10n3HEFRIhVlBMeVwYiJGPdiEDX1U5EhO7rMWbOmZMPqMDl82dJpdLMmFd9W3y3M57Ka3ts3zY1RjyKVSkK+hHH5cHLGa7krmEc4xnpSidG4d+uTh55NOoZUoSea10ke+KIMCowgLvv+Kn8pui0afkmcObkScYHJw05Hdz2Uzy0vPZ/AQ+0fqwTolEEh44jvzMxGmX6c6/eUcMqqO3nTvw1pLrwzIIVYgf6Odh1ls5zF24KDPDs4lX5+UnR6F11wIKu1tPdDcDli+cB+KHnAtEpU5g49+XbZmKMgIIxhlAkfMfghb9R+Zojw58ygWBw1CCq3jk7JNGdjoK9s6dO1nCJn2Kfy55fj8qsqZO11F9MIpPh0OkLt4w7/6knNN6bYWBgkEgogCDsPXJc7i7zfCYjNjiS73K3GtfiKcaW+EGE7lQ638tHG/8BORvgG85pYgIAAAAASUVORK5CYII=', facing: 'right' },
+  mouse: { name: 'Barn Mouse', print: 'Green Pinstripe', pattern: 'assets/patterns/green-pinstripe.png', color: '#979766', sprite: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAQCAYAAADu+KTsAAADpUlEQVR42q2VWUycVRTHf+cbhNIlhWFWQNYiFCP1qWiffHQ6YE0sNK4NNBoj4NIA6Qs1jamaAkmNiiHGWm2LUqrBpFTjUx+qVm1qixloi1QTQzMbSw0tMGW+48MMg4RFXO7D9/C/N//l3HPuJ/zPq9pbqfcUbiI5OYn9ba0yhx9obFJUebW9LYEJQODAQV2zNhUUNjbvlX8rXLW9QkuKi2l5cGsCS67eJY8/skNLiorYV74VEUiuqhaApPDBQ2qqcm3wFxS42faWbmx8aUUDDbV7VACb1YoItLTGEwq0bCtHFAbPnmfzQw/QUFOrAC+6MhEUdJ4n6drgEJa7kij/8D0BuPryPp18+11d31C3yMCzTzypKSlrcDmdCIJIjKtud41OTU0xNT0FCn/8NkJ2bhb9X5+jfbuH+t4vUFOZ/HWEV378LsFnbDv+vswJAxQfflNmZ2YXpd1VUak5OTm4nM4EpgooZGW6Wbd+HdGoCSJsyM+KB4x/TaXp4gVUTT461ZPQMpYqa/CGn9sdnYkCVVdUamlxyfwBBX8wQDAUwozeQQG304kATx/9GIANBXcjhrDnk0/Jz8ulMD+fjtHgAp1l7/ZWR6dOT94io3mvvLC7Ri2GgcPpYDQ8CoDNZiMcDmGqYoiBw2YDES71XyYlOYVNBQUMDQ9TWlIChoCpqDmLqdDSekiWTQ7w0zcXEKDKW6F3IhHsGRkAWAwjXnITu82ORQwEYXR8HFS5/74yZmZm8F25QmnJZlRi+Y4e6cQUAywWXmtq1pljJ3TFrj731HN6eGwEt8uFPSODsfEJRARQVGPpRQRRRUUIh0PYrOmIWOZvPH4eM4qq8uiOh+nt/QrP2G3k72fXqy6XC4sRI7SmpzE+McHvIyNsKSvDEAEEVY3pzFGqEggFQRWH3YGa0fg+9PsGONl3Wlb1oOz0eNXtjhmwpqXRP+AjOzMLkZiow2ZDZc5AjDIQ8KNAwB8gdW0qCBTm5jF0/TrHPv8s9sisRvyvDn8e8LGg7QF/KIiq4nLExvDmxDg3/H5EoefLPlkN74qrvqZWA4EACqjGRMUw4sMOIkK2OxO73c7Fy5cQhJ4zp1fkX1Xyb595XruIgMIbpVsoan99EeljHq9a09MwoyanzvTJTo9XffWNeu87bfKf/1bDTS0aOdGlkeNd+n1NnS7ZnB6vRrq7NdLdrQA/1Nbr9AdHdDlO458Y8PuG8A8MLbu/P68YgKtnzy/AffWNSxr4E/CKe5NVczMiAAAAAElFTkSuQmCC', facing: 'right' },
+  rooster: { name: 'Rooster', print: 'Pink Gingham', pattern: 'assets/patterns/pink-gingham.png', color: '#DB9C9D', sprite: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAYCAYAAAALQIb7AAAEaUlEQVR42rWWy09UdxTHP+feYV48ZkBkeIiUAUYKooVGIhCj9hWb+mqpTZM2Mf0DujNtqqkL+zBN2nTRRfcmrnxVUxfdVIltpbalUWMNBIQAMshrZkCYOzNwTxcDU41ooNGzuMm9ued8zjm/7+/8fsIzsL/qtmih282N6Rgv+gso/fOyAMjTBp2qrFMMg1Knm8q8HERhKp6g/uZVMZ427EZJEoC8PUJXJMKtaIwCjwsAx9JP7XWVagONgVzyvSYfXvx71VUf21ajtSUuQm1eQFm/10n32Tgj9+cAMADeCFVoqc/LOp+XWMqmosDgRHujrhbWuN7NhgoPoCjC2ycGCL3lYfPx+TRsZ3CdFmY7iVlJgj4n10ejXOqLA3Ci/YUVAz9trdKyYhe66KGqnDpYSTSWInnvLgvnm9S4dGdYhqbjDMfiXOgZY1+oiKHpBB0Ds5iG8M2r9SsCOgxhOJxAREAVVWV8MkXBr24i4STmvi4xdgbLVRWaSn28WRvg8mCUHRU+lqRa5nfy3a66JwIvvLdJF4A1/qz0BxFEhKmOFF6nA/v8xnRCqkpNYS5dI1FKc9bSFMjhh+5x9ocKudg9zd7aHEwx+PaV53X7Jg9oWjfDYxZ7T96SQ83VaoriMISfbs7QXOGmvCS9bgDXZ2JsyfNnkqe9vkqn4gkATIGGYh9BnxOAP8Iz7KnxEo7Os63Bm24Rktmh536P0BLMpnitkx+vxQClqcJDnteBwxRav+/KqNoBMDFrUZ7nwTSF4ek4AvRHE/RMzGCIECzzUbXOiSoMhZMs2OmsJ+/bHHytjFhkDhR2N/sJjyXo7Jtlf3M+/SPWQ+3OULc/V6amAcH8bAZiaTU6DeHz3YF0SwTOdEYQEQ60FACwYNsA5OZlc/3WJMFyNyCc65yi3OcmP1u4PWpx9EqvZPYZQMfAXVGF/ugcqCLAZ7uLUFVAONsZxUA4sDUfgIlJC1mUTU9vJJ21ph8tQS/NddkMTiZJ2ctUtmQvBcvUMIQvdgXIcgpDoxa/DiR4t8WPITAYjuNxGazxOxFAEW72xdlc48W2bUTSyYkY2EDT19cyjEdmoyHC6+tzWbCV4XsJRAwW5m1OXokwNGohIhTmOxGB8UiS050RNoe8S4rP5D8Ythi5l1p+zR60r3aE1DRNgkUOekeTbChxYYjS0TtHQ8CT8eoet3intQBVGxXhbjiOiDAzp9weszj2S+9D8R3LwT6+3CMfbKpU285arFYpK3azwxB+7p5dnHzC+9vSoMX5BAiT00rfVAK1H437xMl+pK1G6wMusj0GpiilAdd/QhAYm0hQVOhCEYbCCTr75wDl+NW+ZeOu6Bj5pDWkBS7h5cbcjNftOxaFfpNE0iYyo3RPWChw/Lfex8Zc8Zl1tK1aswyD2mInqQWhf9Jidl6pK3Lxz6jFl4+p5n/boeYq/WhrdWYoH26rVp6lpc40ZAB9R9asCrbqO4iI48EXnhms73C+AiTPbMxUlDrdoMlTG1dU4b9on70KxORa2AAAAABJRU5ErkJggg==', facing: 'right' },
+  piglet: { name: 'Piglet', print: 'Blueberry Lane', pattern: 'assets/patterns/blueberry-lane.png', color: '#458B90', sprite: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAUCAYAAAB1aeb6AAAD3klEQVR42rWWT2hcVRTGf+dOwhvHTFMKsWYmTSeZ/Gs0pKaaNgsRQehKUbBqrbiJKC0YEamB2has2qKFQjcKQbNpIiJVs3AlgghCOykWAlVjMjNpMvnTGGoo+TOZzuQdF+/NZCaJiUJzV/fdezjf993zncODe7hm3jyl6e4eTXf3aP7532+/r5nuXl0db+4luJ2xQQREyIJNH3tPtzXXosD8yfO6ZeAAqDL8/RUUyHzRo8bjoa/rMr/3/QLo1inf0doIIhgjfNf1NWqE7Y/UIyIYj4BKQbxslOz2O2d020PhwmhVZyNCcmgMX00FICSHE3jrdzlhnmK+/bSX5954AREB44F0hqL2I7IpePTlDt391H4XQ1CFpWgCMYIieKsD+WwAIRUdx6oJOqemiOTwGN5wEBGHrxhDcnAU/7lOKQBPX/xcAYrfes357v5SQcGTx00d1amRKVTVzegQEXHikn8muBoZoK1tL1ZthZt9pbIiQtGrL+aSmumjJ3Rp+nYO+LdDx1RUScUnwM4ziBhEBKuqPAforQqAEdQtp7dhNwcONGPVVTrAtrKvswPsZbCXUVUW8hwv/U+3a2NzAyUfHpcbzx/V0J5qELBCgU0ckW9bWXkdlyjYiGYbQJ0YBdIZUqNTqO2mnz/xiSJuEo9gVZY7N8bjsCZbe10fXKSg1XJkIEcA4yE5eJPTPb2cOfISpy99VagtdrhDH6ytBBQFrPAud3rYpOITKOSZzVmp2CQAVm0wr3ttloYSeGsqcsSvX/6RhqZ6l6cNagr7fHZ+AVtd4FDAVW2zFBvnViyBCKTik4UzRXTF9C4wCmI8pOJTOXIthw4SG4wxOnSTsaFx/Oc6ZU1V+59p18a9e1BVR6XxkIqN039lgP1tze6bFHarVVXuPHWeQVPRCaZHJtgZDjpN5XZLyUfv5jCLVoMvZ5wE3qqA+6wJBCG0s4y/4pOUVZU79UdBHR+kohNYNUH3HO7GJ8EYbs3eIfzBxX+17boX8yfPqxV2weOTRCID+C2LstJSjChiDKiiKsSmZ3j88MFcbZNRh+zIHyM0ffPZhv2yRvmd42fVqs4CTxG5OkBraxOiUHLWmU6/Pvu6YitiBMkqDwdRlEjkBq2PPkyoLrRph64B9zVU5vbXIgOEynawnLzL9guncir29XUVKJp/7GPNjlkPwLKNt65i8/Gw+qC4/RXJDoYnf7gk4zOz+CoeIH2hS9moeK53y0pL8NVW/KfZtG5Nnqip0bnFBfy++/k5GpWWQLn6fT7mFhe5Pjkl68UvJBfx+3z8NByVlmBA/fd5mVtMrhu/dT8T/2P9A1ClksG/hLAgAAAAAElFTkSuQmCC', facing: 'right' },
+};
+
+const DEFAULT_CHARACTER = 'sheep';
+
+// Body = sprite size plus two hitboxes, relative to the sprite's top-left:
+//   feet  horizontal span that can land on a cloud (along the bottom edge)
+//   hit   box that touches obstacles
+// This one is for the plain placeholder square, used when a character has no art (yet).
+const PLACEHOLDER_BODY = {
+  w: PLAYER.w,
+  h: PLAYER.h,
+  feet: { x: PLAYER.footInset, w: PLAYER.w - PLAYER.footInset * 2 },
+  hit: { x: PLAYER.hitInset, y: PLAYER.hitInset, w: PLAYER.w - PLAYER.hitInset * 2, h: PLAYER.h - PLAYER.hitInset * 2 },
+};
+
+// Everything the game needs about who's playing. art is filled in by sprites.js in the browser.
+function makeCharacter(id, { body = PLACEHOLDER_BODY, art = null } = {}) {
+  const def = CHARACTERS[id] || { name: 'Baseline' };
+  return { id, ...def, physics: { ...PHYSICS }, body, art };
+}
+Object.defineProperties(__exports, { CHARACTERS: { get: () => CHARACTERS, enumerable: true }, DEFAULT_CHARACTER: { get: () => DEFAULT_CHARACTER, enumerable: true }, PLACEHOLDER_BODY: { get: () => PLACEHOLDER_BODY, enumerable: true }, makeCharacter: { get: () => makeCharacter, enumerable: true } });
+});
+__define('sprites', (__exports) => {
+// Character art pipeline (browser only). Turns a transparent PNG into a game-ready sprite. A PNG that is already
+// game-sized (within PLAYER.spriteMaxWidth × spriteHeight) is used pixel for pixel; larger art is processed:
+//   1. trim the transparent padding,
+//   2. shrink to game size (PLAYER.spriteHeight tall, at most PLAYER.spriteMaxWidth wide) by taking each
+//      output pixel's most common colour, so it stays crisp instead of blurring,
+//   3. build a mirrored copy for facing the other way,
+//   4. measure hitboxes from the visible silhouette.
+const { PLAYER } = __require('config');
+
+const ALPHA_MIN = 128;
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Could not load ${src}`));
+    img.src = src;
+  });
+}
+
+function trimBounds(data, w, h) {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] >= ALPHA_MIN) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+function downsample(data, srcW, box, tw, th) {
+  const out = new ImageData(tw, th);
+  for (let ty = 0; ty < th; ty++) {
+    const y0 = box.y + Math.floor((ty * box.h) / th);
+    const y1 = Math.max(y0 + 1, box.y + Math.floor(((ty + 1) * box.h) / th));
+    for (let tx = 0; tx < tw; tx++) {
+      const x0 = box.x + Math.floor((tx * box.w) / tw);
+      const x1 = Math.max(x0 + 1, box.x + Math.floor(((tx + 1) * box.w) / tw));
+      const buckets = new Map();
+      let opaque = 0, total = 0;
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const i = (y * srcW + x) * 4;
+          total++;
+          if (data[i + 3] < ALPHA_MIN) continue;
+          opaque++;
+          const key = ((data[i] >> 3) << 10) | ((data[i + 1] >> 3) << 5) | (data[i + 2] >> 3);
+          const b = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+          b.n++; b.r += data[i]; b.g += data[i + 1]; b.b += data[i + 2];
+          buckets.set(key, b);
+        }
+      }
+      if (opaque * 2 < total) continue; // mostly transparent → transparent
+      let best = null;
+      for (const b of buckets.values()) if (!best || b.n > best.n) best = b;
+      const o = (ty * tw + tx) * 4;
+      out.data[o] = Math.round(best.r / best.n);
+      out.data[o + 1] = Math.round(best.g / best.n);
+      out.data[o + 2] = Math.round(best.b / best.n);
+      out.data[o + 3] = 255;
+    }
+  }
+  return out;
+}
+
+// Hitboxes from the silhouette. The obstacle box keeps only the solid core (rows/columns at least half as
+// full as the fullest one), so ears, tails and thin legs don't cause unfair hits. The feet span is the
+// width of whatever touches the bottom two rows.
+function silhouetteBody(alpha, w, h) {
+  const cols = new Array(w).fill(0);
+  const rows = new Array(h).fill(0);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (alpha(x, y)) { cols[x]++; rows[y]++; }
+    }
+  }
+  const span = (counts) => {
+    const cut = Math.max(...counts) * 0.5;
+    const first = counts.findIndex((c) => c >= cut);
+    const last = counts.length - 1 - [...counts].reverse().findIndex((c) => c >= cut);
+    return { start: first, size: last - first + 1 };
+  };
+  const hx = span(cols), hy = span(rows);
+
+  let fx0 = w, fx1 = -1;
+  for (let y = Math.max(0, h - 2); y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (alpha(x, y)) { fx0 = Math.min(fx0, x); fx1 = Math.max(fx1, x); }
+    }
+  }
+  let feet = fx1 < 0 ? { x: 2, w: w - 4 } : { x: fx0, w: fx1 - fx0 + 1 };
+  // Thin-legged characters (birds) still get a fair landing span: at least the placeholder square's
+  // (PLAYER.w minus its foot insets = 10px), centred on their actual feet.
+  const minFeet = PLAYER.w - PLAYER.footInset * 2;
+  if (feet.w < minFeet) feet = { x: Math.round(feet.x + feet.w / 2 - minFeet / 2), w: minFeet };
+
+  return { w, h, feet, hit: { x: hx.start, y: hy.start, w: hx.size, h: hy.size } };
+}
+
+function toCanvas(imageData, mirror) {
+  const c = document.createElement('canvas');
+  c.width = imageData.width;
+  c.height = imageData.height;
+  const ctx = c.getContext('2d');
+  if (!mirror) {
+    ctx.putImageData(imageData, 0, 0);
+    return c;
+  }
+  const tmp = toCanvas(imageData, false);
+  ctx.translate(c.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(tmp, 0, 0);
+  return c;
+}
+
+// Resolves to { right, left, body } or null if the PNG is missing / empty.
+async function loadCharacterArt(def) {
+  if (!def || !def.sprite) return null;
+  let img;
+  try {
+    img = await loadImage(def.sprite);
+  } catch {
+    return null; // missing art: the game falls back to the plain placeholder square
+  }
+  const src = document.createElement('canvas');
+  src.width = img.naturalWidth;
+  src.height = img.naturalHeight;
+  const sctx = src.getContext('2d');
+  sctx.drawImage(img, 0, 0);
+  const { data } = sctx.getImageData(0, 0, src.width, src.height);
+
+  const box = trimBounds(data, src.width, src.height);
+  if (!box) return null;
+
+  let tw, th, pixels;
+  if (box.w <= PLAYER.spriteMaxWidth && box.h <= PLAYER.spriteHeight) {
+    // Already game-sized (a finished, hand-touched sprite): use its pixels exactly as drawn.
+    tw = box.w;
+    th = box.h;
+    pixels = new ImageData(tw, th);
+    for (let y = 0; y < th; y++) {
+      for (let x = 0; x < tw; x++) {
+        const i = ((box.y + y) * src.width + box.x + x) * 4;
+        const o = (y * tw + x) * 4;
+        const opaque = data[i + 3] >= ALPHA_MIN;
+        pixels.data[o] = data[i];
+        pixels.data[o + 1] = data[i + 1];
+        pixels.data[o + 2] = data[i + 2];
+        pixels.data[o + 3] = opaque ? 255 : 0;
+      }
+    }
+  } else {
+    // Large art: shrink to game size. Same height for everyone, width follows the art's proportions (capped).
+    th = def.height ?? PLAYER.spriteHeight;
+    tw = Math.max(1, Math.round((box.w * th) / box.h));
+    if (tw > PLAYER.spriteMaxWidth) {
+      tw = PLAYER.spriteMaxWidth;
+      th = Math.max(1, Math.round((box.h * tw) / box.w));
+    }
+    pixels = downsample(data, src.width, box, tw, th);
+  }
+  const alpha = (x, y) => pixels.data[(y * tw + x) * 4 + 3] > 0;
+
+  const native = toCanvas(pixels, false);
+  const mirrored = toCanvas(pixels, true);
+  const facesRight = (def.facing ?? 'right') === 'right';
+  return {
+    right: facesRight ? native : mirrored,
+    left: facesRight ? mirrored : native,
+    body: silhouetteBody(alpha, tw, th),
+  };
+}
+Object.defineProperties(__exports, { silhouetteBody: { get: () => silhouetteBody, enumerable: true }, loadCharacterArt: { get: () => loadCharacterArt, enumerable: true } });
+});
+__define('sky', (__exports) => {
+// Sunset → night sky: color blended between SKY_COLORS by climb height, plus a parallax star field.
+const { VIEW_W, SCORE_PER_PX, SKY_COLORS, SKY_STEP, STARS } = __require('config');
+
+const STOPS = SKY_COLORS.map((hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)));
+const LAST = STOPS.length - 1;
+
+// Fractional stop index for a climb height in world px: 2.5 = halfway between stops 3 and 4 (1-based).
+function skyPosition(height) {
+  return Math.min(LAST, Math.max(0, (height * SCORE_PER_PX) / SKY_STEP));
+}
+
+function skyColor(pos) {
+  const i = Math.min(Math.floor(pos), LAST - 1);
+  const t = Math.min(1, pos - i);
+  const a = STOPS[i], b = STOPS[i + 1];
+  const mix = (k) => Math.round(a[k] + (b[k] - a[k]) * t);
+  return `rgb(${mix(0)},${mix(1)},${mix(2)})`;
+}
+
+// Stable per-cell pseudo-random bits, so stars stay put as the camera moves.
+function hash(x, y) {
+  let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+// 0 during the sunset, easing to 1 as the sky reaches night (same range the stars fade in over).
+function nightAmount(pos) {
+  return Math.min(1, Math.max(0, (pos - STARS.fadeFrom) / (STARS.fullAt - STARS.fadeFrom)));
+}
+
+function drawStars(ctx, pos, camY, time) {
+  const fade = nightAmount(pos);
+  if (fade <= 0) return;
+
+  const c = STARS.cell;
+  const off = camY * STARS.parallax; // star-space y at the top of the screen
+  const rowFrom = Math.floor(off / c) - 1;
+  const rowTo = Math.floor((off + __require('config').VIEW_H) / c);
+  const cols = Math.ceil(VIEW_W / c);
+
+  ctx.fillStyle = '#ffffff';
+  for (let row = rowFrom; row <= rowTo; row++) {
+    for (let col = 0; col < cols; col++) {
+      const h = hash(col, row);
+      if ((h & 1023) / 1024 >= STARS.density) continue;
+      const x = col * c + ((h >>> 10) % c);
+      const y = Math.round(row * c + ((h >>> 15) % c) - off);
+      if (y < -2 || y > __require('config').VIEW_H + 1) continue;
+
+      const twinkles = ((h >>> 23) & 3) === 0;
+      const tw = twinkles ? 0.55 + 0.45 * Math.sin(time * 2.5 + (h & 63)) : 1;
+      ctx.globalAlpha = fade * tw * (0.55 + ((h >>> 25) & 3) * 0.15);
+      if (((h >>> 20) & 7) === 0) {
+        // Occasional bigger "plus" star.
+        ctx.fillRect(x - 1, y, 3, 1);
+        ctx.fillRect(x, y - 1, 1, 3);
+      } else {
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+Object.defineProperties(__exports, { skyPosition: { get: () => skyPosition, enumerable: true }, skyColor: { get: () => skyColor, enumerable: true }, nightAmount: { get: () => nightAmount, enumerable: true }, drawStars: { get: () => drawStars, enumerable: true } });
+});
+__define('clouds', (__exports) => {
+// Procedural pixel-art cloud sprites: a flat-bottomed base plus a row of round puffs,
+// with a shaded underside, soft outline and drop shadow. Built once per (type, width) and cached.
+
+const MARGIN = 1;  // room for the outline around the shape
+const SHADOW = 2;  // drop-shadow depth below the cloud
+const BODY_H = 14; // shape height, from the tallest puff to the flat bottom
+const LIFT = 3;    // the landing line sits this far below the sprite's shape top
+
+// Offset from a platform's (x, y) landing point to the sprite's top-left.
+const CLOUD_OFFSET = { x: -MARGIN, y: -LIFT - MARGIN };
+
+const PALETTES = {
+  normal: { fill: [255, 255, 255, 255], shade: [228, 233, 243, 255], dark: [205, 213, 230, 255] },
+  moving: { fill: [255, 255, 255, 255], shade: [214, 230, 248, 255], dark: [160, 196, 236, 255] },
+  spring: { fill: [255, 255, 255, 255], shade: [255, 222, 180, 255], dark: [244, 162, 97, 255] },
+  // Wispy: translucent with a dithered, see-through lower half, since it won't hold twice.
+  breakable: { fill: [246, 247, 250, 210], shade: [226, 229, 237, 190], dark: [210, 214, 225, 170], wispy: true },
+};
+const OUTLINE = [52, 62, 104, 90];
+const DROP = [30, 34, 70, 40];
+const PUFF_RADII = [4.5, 6, 5, 5.5];
+
+function makeShape(w) {
+  const n = Math.max(3, Math.round(w / 11));
+  const puffs = [];
+  for (let i = 0; i < n; i++) {
+    puffs.push({ cx: (w * (i + 0.5)) / n, cy: 7, r: PUFF_RADII[i % PUFF_RADII.length] });
+  }
+  const rx = w / 2;
+  return (x, y) => {
+    if (x < 0 || x >= w || y < 0 || y >= BODY_H) return false;
+    const px = x + 0.5, py = y + 0.5;
+    const ex = (px - rx) / rx, ey = (py - 10) / 4;
+    if (ex * ex + ey * ey <= 1) return true;
+    for (const p of puffs) {
+      const dx = px - p.cx, dy = py - p.cy;
+      if (dx * dx + dy * dy <= p.r * p.r) return true;
+    }
+    return false;
+  };
+}
+
+function build(type, w) {
+  const pal = PALETTES[type] || PALETTES.normal;
+  const inside = makeShape(w);
+  const cw = w + MARGIN * 2;
+  const ch = BODY_H + MARGIN + SHADOW + 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(cw, ch);
+
+  for (let sy = 0; sy < ch; sy++) {
+    for (let sx = 0; sx < cw; sx++) {
+      const x = sx - MARGIN, y = sy - MARGIN;
+      let c = null;
+      if (inside(x, y)) {
+        if (pal.wispy && y >= 9 && (x + y) % 2 === 0) continue;
+        if (!inside(x, y + 1)) c = pal.dark;
+        else if (!inside(x, y + 3)) c = pal.shade;
+        else c = pal.fill;
+      } else if (inside(x - 1, y) || inside(x + 1, y) || inside(x, y - 1) || inside(x, y + 1)) {
+        c = OUTLINE;
+      } else if (inside(x, y - SHADOW) || inside(x, y - 1)) {
+        c = DROP;
+      }
+      if (!c) continue;
+      const i = (sy * cw + sx) * 4;
+      img.data[i] = c[0];
+      img.data[i + 1] = c[1];
+      img.data[i + 2] = c[2];
+      img.data[i + 3] = c[3];
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return canvas;
+}
+
+const cache = new Map();
+function cloudSprite(type, w) {
+  const key = `${type}:${w}`;
+  let s = cache.get(key);
+  if (!s) cache.set(key, (s = build(type, w)));
+  return s;
+}
+Object.defineProperties(__exports, { CLOUD_OFFSET: { get: () => CLOUD_OFFSET, enumerable: true }, cloudSprite: { get: () => cloudSprite, enumerable: true } });
+});
+__define('flyers', (__exports) => {
+// Flying-obstacle sprites (crow, owl, bee): two flap frames each, drawn facing right and mirrored for left.
+// Built once at load from the pixel maps below. Each character in a map is a palette key; '.' is transparent.
+// The maps are drawn at ART_SCALE (2) art pixels per game pixel, so the flyers keep their size on screen but
+// carry finer detail; render.js draws them on the full-resolution canvas so that detail survives.
+
+const ART = {
+  crow: {
+    // K body, H sheen, S shadowed underside, D tail, T tail-feather split, W wing, F darker feather edges,
+    // E eye, X pupil, B beak, b lower beak and tucked feet
+    up: [
+      '........FWW.............................',
+      '........FFWW............................',
+      '..........FWWWW.........................',
+      '..........FFWWWW........................',
+      '............FWWWW.......................',
+      '............FFWWWW......................',
+      '..............FWWWW..........HHHH.......',
+      '..............FFWWWW........HHKKKH......',
+      'DTDT..........KKWWWWHHHHHHHHKKEEKKBBB...',
+      'DDDD..........KKWWWWHHHHHHKKKKEXKKBBBB..',
+      '..DTDTHHHHHHHHKKKKKKKKKKKKKKKKKKKKBBBBB.',
+      '..DDDDKKKKHHHHKKKKKKKKKKKKKKKKKKKKBBBBB.',
+      '....DTDTKKSSSSSSKKKKKKKKKKKKKKKKKKb.b...',
+      '....DDDDKKSSSSSSKKKKKKKKKKKKKKKKSSb.b...',
+      '........SKSSSSSSSSSSSSKKKKKKKKKS........',
+      '.........SSSSSSSSSSSSSKKKKKKKKS.........',
+      '............SSSSSSSSSSSSSSSSSS..........',
+      '.............SSSSSSSSSSSSSSSS...........',
+      '..................b.....b...............',
+      '..................b.....b...............',
+    ],
+    down: [
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '.............................HHHH.......',
+      '............................HHKKKH......',
+      'DTDT...........HHHHHHHHHHHHHKKEEKKBBB...',
+      'DDDD..........HKKKKKHHHHHHKKKKEXKKBBBB..',
+      '..DTDTHHHHHHHHKKKKKKKKKKKKKKKKKKKKBBBBB.',
+      '..DDDDKKKKHHHHKKKKKKKKKKKKKKKKKKKKBBBBB.',
+      '....DTDTKKKKKKFWWWWWWWKKKKKKKKKKKKbbbb..',
+      '....DDDDKKKKKKFFWWWWWWKKKKKKKKKKSSbbb...',
+      '........SKSSSSKKFWWWWWWWKKKKKKKS........',
+      '.........SSSSSKKFFWWWWWWKKKKKKS.........',
+      '............SSSSKKFWWWWWWWKKSS..........',
+      '.............SSSSSFFWWWWWWSSS...........',
+      '..................FWWWWW................',
+      '..................FFWWW.................',
+    ],
+    palettes: {
+      day: { K: '#2b2b36', H: '#45465a', S: '#1b1b22', D: '#1b1b22', T: '#30303d', W: '#55556a', F: '#3e3e50', E: '#ffffff', X: '#0d0d12', B: '#f5a623', b: '#d4781f' },
+      // Lighter feathers so crows in the dusk overlap stay visible against the dark sky.
+      night: { K: '#5d6184', H: '#7d82a8', S: '#4a4d6b', D: '#4a4d6b', T: '#565a7c', W: '#8f94b8', F: '#6f739a', E: '#ffffff', X: '#22243a', B: '#f5a623', b: '#d4781f' },
+    },
+  },
+  owl: {
+    // Barn owl. B golden back, T rim light, U shaded belly, S pale speckles, W wing, P wing bars,
+    // R ruff around the white heart-shaped face L, E eyes, Q catch light, K beak, D tail / talons
+    up: [
+      '.....WWWPPW.........................',
+      '.....WWWWWWW........................',
+      '......WWPPWWWWPP.........RRRRRRRR...',
+      '.......WWWWWWWWW........RRRRRRRRRR..',
+      '........WWWWPPWWW......RLLLLLLLLLLR.',
+      '.........WWWWWWWWW....RRLLLLLLLLLLRR',
+      '..........WWWWPPWWT...LLLLQELLQELLLL',
+      '..........WWWWWWWWBT..LLLLEELLEELLLL',
+      '.....TTTSTBBBBWWWWBBTTRRLLLLKKLLLLRR',
+      '....TBBBBBBBBBWWWWBBBBRRLLLLKKLLLLR.',
+      '...DBBBBSBBBBBBBSBBBBBBBRRLLLLLLRR..',
+      '..DDBBBBBBBBBBBBBBBBBBBBRRLLLLLLR...',
+      '.DDDBBBBBBBBSBBBBBBBSBBBBBBBBBBU....',
+      '.DDDUUBBBBBBBBBBBBBBBBBBBBBBBBU.....',
+      '..DD..UBBBSBBBBBBBBBSBBBBBBBBU......',
+      '.......UUUBBBBBBBBBBBBBBBBBBU.......',
+      '..........UUUUBBBBBBBBBBUUUU........',
+      '...........UUUBBUUUUUUBBUUU.........',
+      '..............DD......DD............',
+      '....................................',
+    ],
+    down: [
+      '....................................',
+      '....................................',
+      '.........................RRRRRRRR...',
+      '........................RRRRRRRRRR..',
+      '.......................RLLLLLLLLLLR.',
+      '......................RRLLLLLLLLLLRR',
+      '......................LLLLQELLQELLLL',
+      '......................LLLLEELLEELLLL',
+      '.....TTTSTTTTTTTTTSTTTRRLLLLKKLLLLRR',
+      '....TBBBBBBBBBBBBBBBBBRRLLLLKKLLLLR.',
+      '...DBBBBSBBBBBBBBBBBBBBBRRLLLLLLRR..',
+      '..DDBBBBBBBBBBBBBBBBBBBBRRLLLLLLR...',
+      '.DDDBBBBBBWWPPWWPPWWBBBBSBBBBBBU....',
+      '.DDDUUBBBBWWWWWWWWWWBBBBBBBBBBU.....',
+      '..DD..UBBBWWPPWWWWPPWWBBBBBBBU......',
+      '.......UUUWWWWWWWWWWWWBBBBBBU.......',
+      '..........WWWWPPWWWWWWUUUUUU........',
+      '...........WWWWWWWWWWWUUUUU.........',
+      '............WWPPWWPPWW..............',
+      '.............WWWWWWWW...............',
+    ],
+    palettes: {
+      // Pale golden and white, so owls stand out against the night sky.
+      day: { B: '#c9a26b', T: '#dcbb85', S: '#e9d7b0', U: '#b38f5f', W: '#a88452', P: '#7d5f3a', R: '#d9b98a', L: '#f4ede0', E: '#2a1f1a', Q: '#ffffff', K: '#b07a4a', D: '#8a6a42' },
+    },
+  },
+  butterfly: {
+    // Drawn as a bee (the id stays "butterfly" so spawning, movement and saved stats are unchanged).
+    // An oval striped body with an unbroken black outline, a round head with an eye, a pointed stinger and antennae.
+    // Y yellow, H highlight, O shaded underside, K outline / stripes / head / stinger / antennae, E eye, X pupil,
+    // G sheen on the head, W translucent wing, V wing vein, L wing rim
+    up: [
+      '......................',
+      '......................',
+      '......LLL..LLL........',
+      '.....LWWWLLWWWL.......',
+      '....LWVVWWLWVWWL......',
+      '....LWWWVWLWWVWL......',
+      '.....LWWWLLWWWLK....K.',
+      '......LLLLLLLL..K..K..',
+      '......KKKKKKK...K.K...',
+      '....KKHKKHHKKKKKKKK...',
+      '...KHHYKKYYKKHKGKEEK..',
+      '.KKHYYYKKYYKKYKKKEXK..',
+      'KKKYYYYKKYYKKYKKKKKK..',
+      '...KOOYKKYYKKOKKKKK...',
+      '....KKOKKOOKKK........',
+      '......KKKKKKK.........',
+      '......................',
+      '......................',
+    ],
+    down: [
+      '......................',
+      '......................',
+      '......................',
+      '......................',
+      '......................',
+      '...LLLLL.LLLL.........',
+      '..LWVVWWLWVWWL.K....K.',
+      '..LWWWVWLWWVWL..K..K..',
+      '...LLLLLKLLLL...K.K...',
+      '....KKHKKHHKKKKKKKK...',
+      '...KHHYKKYYKKHKGKEEK..',
+      '.KKHYYYKKYYKKYKKKEXK..',
+      'KKKYYYYKKYYKKYKKKKKK..',
+      '...KOOYKKYYKKOKKKKK...',
+      '....KKOKKOOKKK........',
+      '......KKKKKKK.........',
+      '......................',
+      '......................',
+    ],
+    palettes: {
+      // Pale blue rim keeps the see-through wings readable against the yellow day sky.
+      day: { Y: '#f6c32b', H: '#ffe27a', O: '#e0a21f', K: '#2b2b36', E: '#ffffff', X: '#2b2b36', G: '#45465a', W: 'rgba(255, 255, 255, 0.55)', V: 'rgba(170, 200, 225, 0.55)', L: 'rgba(170, 200, 225, 0.9)' },
+    },
+  },
+};
+
+// Wingbeat speed (radians per second of the flap cycle).
+const FLAP_RATE = { crow: 12, owl: 7, butterfly: 22 };
+
+function build(rows, flip, palette) {
+  const w = rows[0].length;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = rows.length;
+  const ctx = canvas.getContext('2d');
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (!palette[ch]) return;
+      ctx.fillStyle = palette[ch];
+      ctx.fillRect(flip ? w - 1 - x : x, y, 1, 1);
+    });
+  });
+  return canvas;
+}
+
+const SPRITES = {};
+for (const [kind, art] of Object.entries(ART)) {
+  SPRITES[kind] = {};
+  for (const [variant, palette] of Object.entries(art.palettes)) {
+    SPRITES[kind][variant] = {
+      up: { right: build(art.up, false, palette), left: build(art.up, true, palette) },
+      down: { right: build(art.down, false, palette), left: build(art.down, true, palette) },
+    };
+  }
+}
+
+const ART_SCALE = 2;
+
+// Size in game pixels (the sprite canvases are ART_SCALE times larger).
+function flyerSize(kind) {
+  const rows = ART[kind].up;
+  return { w: rows[0].length / ART_SCALE, h: rows.length / ART_SCALE };
+}
+
+function hasNightPalette(kind) {
+  return Boolean(SPRITES[kind].night);
+}
+
+function flyerSprite(kind, wingsUp, facingRight, night = false) {
+  const set = SPRITES[kind][night && SPRITES[kind].night ? 'night' : 'day'];
+  return set[wingsUp ? 'up' : 'down'][facingRight ? 'right' : 'left'];
+}
+Object.defineProperties(__exports, { FLAP_RATE: { get: () => FLAP_RATE, enumerable: true }, ART_SCALE: { get: () => ART_SCALE, enumerable: true }, flyerSize: { get: () => flyerSize, enumerable: true }, hasNightPalette: { get: () => hasNightPalette, enumerable: true }, flyerSprite: { get: () => flyerSprite, enumerable: true } });
+});
+__define('gust', (__exports) => {
+// Curled wind gust: layered, semi-transparent streaks that each end in a small pixel spiral, like a cartoon
+// "whoosh". The round curls and the soft pale underside echo the cloud platforms' puffy lobes. Drawn at
+// virtual (pixel-art) resolution, one pixel at a time, so it stays crisp when scaled up.
+
+const CORE = [255, 255, 255];
+const SHADE = [214, 226, 240]; // pale underside, like the clouds' shaded bottoms
+
+// Streaks, relative to the gust's top-left (its hitbox is 36 × 14; curls may overhang slightly).
+//   x0, len  where the straight part starts and how long it is
+//   curl     which end curls: 'right', 'left', or null for a straight streak
+//   turn     curl direction: -1 curls upward, 1 curls downward
+//   r        curl radius in pixels
+//   phase    offsets the animation so the streaks don't move in lockstep
+const STREAKS = [
+  { y: 2, x0: 2, len: 21, curl: 'right', turn: -1, r: 4.2, phase: 0, alpha: 0.92 }, // curls up on the right
+  { y: 7, x0: 6, len: 26, curl: null, phase: 2.1, alpha: 0.78, middle: true },       // straight
+  { y: 12, x0: 9, len: 20, curl: 'left', turn: 1, r: 4.2, phase: 4.2, alpha: 0.88 }, // curls down on the left
+];
+
+const CURL_TURNS = 1.1; // how far each spiral winds in (1 = one full loop)
+const CURL_TIGHTEN = 0.25; // radius at the spiral's centre, as a fraction of r
+const THICK_UNTIL = 0.55; // the outer part of the curl (this share of the sweep) is drawn 2px thick, like the line
+const TAIL_FADE = 7; // pixels at the straight end that fade out
+const ANIM_SPEED = 0.5; // pace of the gust's own motion (shimmer, bob, stretch, curl wobble); 1 = original gust's shimmer speed
+
+// Pixels of one streak: a 2px line, fading at its tail, that winds into a shrinking spiral at its curled end
+// (or, for a straight streak, just the line, faded at both ends).
+function streakPixels(s, t) {
+  const pts = new Map(); // "x,y" -> strength (0–1), so overlapping samples don't double up
+  const add = (x, y, k) => {
+    const key = `${x},${y}`;
+    pts.set(key, Math.max(pts.get(key) || 0, k));
+  };
+
+  const len = s.len + Math.round(Math.sin(t * 2.2 + s.phase) * 2); // length breathes
+  const bob = Math.round(Math.sin(t * 3.4 + s.phase) * 0.7); // whole streak rises and falls a pixel
+
+  if (!s.curl) {
+    // Straight streak: soft at both ends.
+    for (let i = 0; i <= len; i++) {
+      const k = Math.min(1, (i + 1) / TAIL_FADE, (len - i + 1) / TAIL_FADE);
+      add(s.x0 + i, s.y + bob, k);
+      add(s.x0 + i, s.y + bob + 1, k);
+    }
+    return pts;
+  }
+
+  const dir = s.curl === 'right' ? 1 : -1; // direction of travel toward the curl
+  const start = s.curl === 'right' ? s.x0 : s.x0 + s.len;
+  const ey = s.y + bob;
+  let ex = start;
+  for (let i = 0; i <= len; i++) {
+    const x = start + dir * i;
+    const k = Math.min(1, (i + 1) / TAIL_FADE);
+    add(x, ey, k);
+    add(x, ey + 1, k); // 2px thick, like the old gust's streaks
+    ex = x;
+  }
+
+  // Spiral: starts tangent to the line, curls up or down, and tightens toward its centre.
+  // The start angle wobbles a little so the curl looks like it's riding the air.
+  const cx = ex, cy = ey + s.turn * s.r;
+  const a0 = Math.atan2(ey - cy, ex - cx) + Math.sin(t * 3 + s.phase) * 0.25;
+  const spin = dir * s.turn;
+  const sweep = CURL_TURNS * Math.PI * 2;
+  // The line is 2px thick (rows ey and ey+1), so the curl is centred half a pixel lower to meet it.
+  const ccy = cy + 0.5;
+  for (let th = 0; th <= sweep; th += 0.03) {
+    const f = th / sweep;
+    const r = s.r * (1 - (1 - CURL_TIGHTEN) * f);
+    const px = cx + r * Math.cos(a0 + spin * th);
+    const py = ccy + r * Math.sin(a0 + spin * th);
+    add(Math.round(px), Math.round(py), 1);
+    if (f < THICK_UNTIL) {
+      // Thicken inward, toward the curl's centre, so the loop stays open and round.
+      add(Math.round(px + (cx - px) / r), Math.round(py + (ccy - py) / r), 1);
+    }
+  }
+  return pts;
+}
+
+function plot(ctx, pts, ox, oy, rgb, alpha, dy) {
+  for (const [key, k] of pts) {
+    const [x, y] = key.split(',').map(Number);
+    ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(alpha * k).toFixed(3)})`;
+    ctx.fillRect(ox + x, oy + y + dy, 1, 1);
+  }
+}
+
+// Draw a gust with its top-left at (x, y) in virtual pixels. t is the gust's own clock in seconds.
+// options.middle: false leaves out the straight middle streak (top and bottom curls only).
+function drawGust(ctx, x, y, t, { middle = true } = {}) {
+  x = Math.round(x);
+  y = Math.round(y);
+  t *= ANIM_SPEED;
+  // Shimmer, as in the original gust: each streak steps sideways through a 6px cycle (20 px/s at speed 1),
+  // offset per streak so they don't move in unison.
+  const shift = Math.floor(t * 20) % 6;
+  STREAKS.forEach((s, i) => {
+    if (s.middle && !middle) return;
+    const dx = (shift + i * 4) % 6;
+    const pts = streakPixels(s, t);
+    plot(ctx, pts, x + dx, y, SHADE, s.alpha * 0.6, 1); // soft underside first
+    plot(ctx, pts, x + dx, y, CORE, s.alpha, 0);
+  });
+}
+Object.defineProperties(__exports, { drawGust: { get: () => drawGust, enumerable: true } });
+});
+__define('level', (__exports) => {
+// Procedural generation: platform spacing, type mix and obstacles, all scaled by difficulty.
+const { VIEW_W, PLATFORM, OBSTACLE, DIFFICULTY_HEIGHT, PHYSICS } = __require('config');
+const { skyPosition } = __require('sky');
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+
+function difficulty(height) {
+  return Math.min(1, Math.max(0, height / DIFFICULTY_HEIGHT));
+}
+
+// Max gap stays well under the normal bounce apex so every platform is reachable.
+const APEX = (PHYSICS.bounceVel * PHYSICS.bounceVel) / (2 * PHYSICS.gravity);
+
+function platformGap(d) {
+  return rand(lerp(24, 40, d), lerp(48, APEX * 0.82, d));
+}
+
+function pickPlatformType(d, prevType) {
+  const spring = 0.05;
+  const moving = lerp(0, 0.3, d);
+  // Never two breakables in a row, so there is always a solid option nearby.
+  const breakable = prevType === 'breakable' ? 0 : lerp(0.03, 0.2, d);
+  const r = Math.random();
+  if (r < spring) return 'spring';
+  if (r < spring + moving) return 'moving';
+  if (r < spring + moving + breakable) return 'breakable';
+  return 'normal';
+}
+
+function makePlatform(type, y, d, x = rand(2, VIEW_W - PLATFORM.w - 2), w = PLATFORM.w) {
+  const speed = lerp(PLATFORM.moveSpeedMin, PLATFORM.moveSpeedMax, d);
+  return {
+    type, x, y, w, h: PLATFORM.h,
+    vx: type === 'moving' ? (Math.random() < 0.5 ? -speed : speed) : 0,
+    broken: false,
+    breakT: 0,
+  };
+}
+
+function obstacleChance(height) {
+  if (height < OBSTACLE.minHeight) return 0;
+  return lerp(OBSTACLE.chanceMin, OBSTACLE.chanceMax, difficulty(height));
+}
+
+// Extra per-cloud chance of a butterfly early in the climb, strongest at the start and fading out.
+function earlyButterflyChance(height) {
+  const { butterflyEarlyFrom: from, butterflyEarlyUntil: until, butterflyEarlyChance: chance } = OBSTACLE;
+  if (height < from || height >= until) return 0;
+  return chance * (1 - (height - from) / (until - from));
+}
+
+// Chance (0–1) that a flying obstacle at this climb height is an owl rather than a daytime flyer.
+function owlChance(height) {
+  const t = (skyPosition(height) - OBSTACLE.owlsFrom) / (OBSTACLE.owlsFull - OBSTACLE.owlsFrom);
+  return Math.min(1, Math.max(0, t));
+}
+
+// Flying obstacles: hitbox size and inset (how far the obstacle's own hitbox is shrunk).
+const FLYERS = {
+  crow: { w: 16, h: 10, inset: 2, speed: [35, 70] },
+  owl: { w: 16, h: 10, inset: 2, speed: [35, 70] },
+  butterfly: { w: 9, h: 7, inset: 1, speed: [25, 45] },
+};
+
+function makeFlyer(kind, centerY, d) {
+  const f = FLYERS[kind];
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  return {
+    kind, w: f.w, h: f.h, inset: f.inset,
+    x: rand(0, VIEW_W), y: centerY - f.h / 2, baseY: centerY - f.h / 2,
+    vx: dir * lerp(f.speed[0], f.speed[1], d),
+    t: rand(0, 10),
+  };
+}
+
+// centerY is the vertical middle of the gap the obstacle sits in; height is how far up the climb it is.
+function makeObstacle(centerY, d, height) {
+  if (Math.random() >= OBSTACLE.gustShare) {
+    let kind = 'owl';
+    if (Math.random() >= owlChance(height)) {
+      kind = Math.random() < OBSTACLE.butterflyShare ? 'butterfly' : 'crow';
+    }
+    return makeFlyer(kind, centerY, d);
+  }
+  const w = 36, h = 14;
+  const cx = rand(w / 2 + 10, VIEW_W - w / 2 - 10);
+  return {
+    kind: 'gust', w, h, inset: OBSTACLE.hitInset,
+    cx, x: cx - w / 2, y: centerY - h / 2,
+    amp: lerp(15, 45, d),
+    freq: lerp(0.35, 0.7, d),
+    t: rand(0, 10),
+  };
+}
+Object.defineProperties(__exports, { difficulty: { get: () => difficulty, enumerable: true }, platformGap: { get: () => platformGap, enumerable: true }, pickPlatformType: { get: () => pickPlatformType, enumerable: true }, makePlatform: { get: () => makePlatform, enumerable: true }, obstacleChance: { get: () => obstacleChance, enumerable: true }, earlyButterflyChance: { get: () => earlyButterflyChance, enumerable: true }, owlChance: { get: () => owlChance, enumerable: true }, makeFlyer: { get: () => makeFlyer, enumerable: true }, makeObstacle: { get: () => makeObstacle, enumerable: true } });
+});
+__define('game', (__exports) => {
+// Simulation: player physics, platform/obstacle updates, collisions, camera and score.
+// States: 'ready' (resting on the grass) → 'playing' → 'over'.
+const { VIEW_W, PHYSICS, PLATFORM, OBSTACLE, CAMERA_ANCHOR, SCORE_PER_PX, GROUND, PARTICLES, TEMPO } = __require('config');
+const { skyPosition } = __require('sky');
+const { makeCharacter } = __require('characters');
+const { difficulty, platformGap, pickPlatformType, makePlatform, obstacleChance, makeObstacle, earlyButterflyChance, makeFlyer } = __require('level');
+
+const overlapX = (ax, aw, bx, bw) => ax < bx + bw && ax + aw > bx;
+// The player wraps around the screen edges, so test its copies one screen-width either side too.
+const overlapXWrapped = (ax, aw, bx, bw) =>
+  overlapX(ax, aw, bx, bw) || overlapX(ax - VIEW_W, aw, bx, bw) || overlapX(ax + VIEW_W, aw, bx, bw);
+const wrap = (x) => ((x % VIEW_W) + VIEW_W) % VIEW_W;
+
+// Advance puff particles by dt; returns the ones still alive.
+function stepParticles(particles, dt) {
+  const k = Math.max(0, 1 - PARTICLES.drag * dt);
+  for (const pt of particles) {
+    pt.age += dt;
+    pt.vx *= k;
+    pt.vy *= k;
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
+  }
+  return particles.filter((pt) => pt.age < pt.life);
+}
+
+// Auto-bounce tempo for a sky position: TEMPO.start at sunset, easing up to 1 at TEMPO.fullAt, then holding.
+function bounceTempo(skyPos) {
+  const t = Math.min(1, Math.max(0, skyPos / TEMPO.fullAt));
+  return TEMPO.start + (1 - TEMPO.start) * t;
+}
+
+class Game {
+  // character: physics + body (sprite size and hitboxes). Defaults to the baseline square.
+  constructor(character = makeCharacter(null)) {
+    this.character = character;
+    this.phys = character.physics;
+    this.body = character.body;
+    this.reset();
+  }
+
+  reset() {
+    this.state = 'ready';
+    this.time = 0;
+    this.deathCause = null;
+    this.platforms = [];
+    this.obstacles = [];
+    this.particles = [];
+
+    // Full-width grass the run starts on. It behaves like a platform, and the renderer draws the farm scene there.
+    const groundY = __require('config').VIEW_H - GROUND.height;
+    this.groundY = groundY;
+    this.platforms.push(makePlatform('ground', groundY, 0, 0, VIEW_W));
+
+    this.player = {
+      x: (VIEW_W - this.body.w) / 2,
+      y: groundY - this.body.h,
+      vx: 0,
+      vy: 0, // resting until start() gives the first bounce
+      facing: 1,
+      dead: false,
+      // Tempo of the current jump arc, locked in at each bounce. Launch speed scales by it and gravity by
+      // its square, so the arc keeps its exact height and just plays slower or faster.
+      tempo: TEMPO.start,
+    };
+    this.startY = this.player.y;
+    this.camY = 0;
+    this.maxHeight = 0;
+
+    // First cloud sits right above the start, so the opening bounce lands on it without steering.
+    // Uses baseline physics so the level layout is the same whoever is playing.
+    const firstY = groundY - (PHYSICS.bounceVel ** 2 / (2 * PHYSICS.gravity)) * GROUND.firstGapFraction;
+    const firstX = (VIEW_W - PLATFORM.w) / 2 + (Math.random() * 2 - 1) * GROUND.firstCloudJitter;
+    this.platforms.push(makePlatform('normal', firstY, 0, firstX));
+
+    this.nextPlatY = firstY;
+    this.lastType = 'normal';
+    this.lastObstacleY = groundY;
+    this.fill();
+  }
+
+  get score() {
+    return Math.floor(this.maxHeight * SCORE_PER_PX);
+  }
+
+  start() {
+    if (this.state !== 'ready') return;
+    this.state = 'playing';
+    this.player.tempo = this.tempo();
+    this.player.vy = -this.phys.bounceVel * this.player.tempo;
+  }
+
+  // Tempo for the sky the camera is currently showing, so the rhythm and the sunset change together.
+  tempo() {
+    return bounceTempo(skyPosition(-this.camY));
+  }
+
+  // Spring launch: a quick ring of soft puffs from the cloud top, mostly sideways.
+  puff(x, y) {
+    const { count, speedMin, speedMax, lifeMin, lifeMax } = PARTICLES;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const speed = speedMin + Math.random() * (speedMax - speedMin);
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * speed,
+        vy: Math.sin(a) * speed * 0.45 - 12, // flattened, drifting slightly up
+        age: 0,
+        life: lifeMin + Math.random() * (lifeMax - lifeMin),
+        size: Math.random() < 0.4 ? 3 : 2,
+      });
+    }
+  }
+
+  // Keep the world populated half a screen above the camera.
+  fill() {
+    const limit = this.camY - __require('config').VIEW_H * 0.5;
+    while (this.nextPlatY > limit) {
+      const height = this.startY - this.nextPlatY;
+      const d = difficulty(height);
+      const gap = platformGap(d);
+      const y = this.nextPlatY - gap;
+      const type = pickPlatformType(d, this.lastType);
+      this.platforms.push(makePlatform(type, y, d));
+
+      if (this.lastObstacleY - y > OBSTACLE.minSpacing) {
+        const early = earlyButterflyChance(height);
+        const r = Math.random();
+        if (r < early + obstacleChance(height)) {
+          const centerY = y + gap / 2;
+          this.obstacles.push(r < early ? makeFlyer('butterfly', centerY, d) : makeObstacle(centerY, d, height));
+          this.lastObstacleY = y;
+        }
+      }
+      this.nextPlatY = y;
+      this.lastType = type;
+    }
+  }
+
+  update(dt, input) {
+    this.time += dt;
+    if (this.state === 'over') return;
+    const p = this.player;
+    const phys = this.phys;
+    const body = this.body;
+
+    // Steering: a tap gives an instant nudge (reversing cancels momentum), holding keeps accelerating.
+    const canSteer = this.state === 'playing' && !p.dead;
+    const impulse = input.takeImpulse();
+    if (canSteer && impulse) {
+      if (Math.sign(p.vx) !== impulse) p.vx = 0;
+      p.vx += impulse * phys.tapImpulse;
+      p.facing = impulse;
+    }
+    const steer = canSteer ? input.steer : 0;
+    if (steer) {
+      p.vx += steer * phys.steerAccel * dt;
+      p.facing = steer;
+    } else {
+      p.vx -= p.vx * Math.min(1, phys.drag * dt);
+    }
+    p.vx = Math.max(-phys.maxVx, Math.min(phys.maxVx, p.vx));
+
+    const prevBottom = p.y + body.h;
+    if (this.state !== 'ready') {
+      p.vy += phys.gravity * p.tempo * p.tempo * dt;
+      p.x = wrap(p.x + p.vx * dt);
+      p.y += p.vy * dt;
+    }
+
+    for (const plat of this.platforms) {
+      if (plat.type === 'moving') {
+        plat.x += plat.vx * dt;
+        if (plat.x < 0) { plat.x = 0; plat.vx = Math.abs(plat.vx); }
+        if (plat.x > VIEW_W - plat.w) { plat.x = VIEW_W - plat.w; plat.vx = -Math.abs(plat.vx); }
+      }
+      if (plat.broken) plat.breakT += dt;
+    }
+
+    // Landing: only while falling, and only if the feet crossed the platform top this step.
+    if (!p.dead && p.vy > 0) {
+      const bottom = p.y + body.h;
+      const fx = p.x + body.feet.x;
+      const fw = body.feet.w;
+      let hit = null;
+      for (const plat of this.platforms) {
+        if (plat.broken) continue;
+        if (prevBottom <= plat.y && bottom >= plat.y && overlapXWrapped(fx, fw, plat.x, plat.w)) {
+          if (!hit || plat.y < hit.y) hit = plat;
+        }
+      }
+      if (hit) {
+        p.y = hit.y - body.h;
+        p.tempo = this.tempo();
+        p.vy = (hit.type === 'spring' ? -phys.springVel : -phys.bounceVel) * p.tempo;
+        if (hit.type === 'breakable') hit.broken = true;
+        if (hit.type === 'spring') this.puff(p.x + body.feet.x + body.feet.w / 2, hit.y);
+      }
+    }
+
+    for (const o of this.obstacles) {
+      o.t += dt;
+      switch (o.kind) {
+        case 'crow':
+          o.x = wrap(o.x + o.vx * dt);
+          o.y = o.baseY + Math.sin(o.t * 4) * 3;
+          break;
+        case 'owl':
+          // Same path as the crow, with slower, heavier wingbeats.
+          o.x = wrap(o.x + o.vx * dt);
+          o.y = o.baseY + Math.sin(o.t * 2.5) * 3;
+          break;
+        case 'butterfly': {
+          // Fluttery: surges and stalls sideways while bobbing on two overlapping waves.
+          const surge = 0.4 + 0.9 * Math.abs(Math.sin(o.t * 2.6));
+          o.x = wrap(o.x + o.vx * surge * dt);
+          o.y = o.baseY + Math.sin(o.t * 3.1) * 6 + Math.sin(o.t * 8.3) * 2;
+          break;
+        }
+        default: // gust
+          o.x = o.cx - o.w / 2 + Math.sin(o.t * o.freq * Math.PI * 2) * o.amp;
+      }
+    }
+
+    this.particles = stepParticles(this.particles, dt);
+
+    if (this.state === 'playing' && !p.dead) {
+      const hb = body.hit;
+      for (const o of this.obstacles) {
+        const oi = o.inset;
+        const top = p.y + hb.y;
+        const vertical = top < o.y + o.h - oi && top + hb.h > o.y + oi;
+        // Wrapped test also covers crows straddling the screen edge.
+        const horizontal = overlapXWrapped(p.x + hb.x, hb.w, o.x + oi, o.w - oi * 2);
+        if (vertical && horizontal) {
+          p.dead = true;
+          p.vx = 0;
+          p.vy = Math.max(p.vy, 60);
+          this.deathCause = o.kind;
+          break;
+        }
+      }
+    }
+
+    // Camera only ever moves up.
+    if (!p.dead) {
+      const target = p.y - __require('config').VIEW_H * CAMERA_ANCHOR;
+      if (target < this.camY) this.camY = target;
+      this.maxHeight = Math.max(this.maxHeight, this.startY - p.y);
+    }
+
+    if (this.state === 'playing' && p.y > this.camY + __require('config').VIEW_H) {
+      this.state = 'over';
+      this.deathCause = this.deathCause || 'fall';
+    }
+
+    const bottomEdge = this.camY + __require('config').VIEW_H + 40;
+    this.platforms = this.platforms.filter(
+      (pl) => pl.y < bottomEdge && !(pl.broken && pl.breakT > PLATFORM.breakTime),
+    );
+    this.obstacles = this.obstacles.filter((o) => o.y < bottomEdge);
+    this.fill();
+  }
+}
+Object.defineProperties(__exports, { stepParticles: { get: () => stepParticles, enumerable: true }, bounceTempo: { get: () => bounceTempo, enumerable: true }, Game: { get: () => Game, enumerable: true } });
+});
+__define('input', (__exports) => {
+// Touch/mouse: left or right half of the screen. Keyboard (desktop testing): arrows / A-D, Space/Enter, P / Esc.
+
+class Input {
+  constructor() {
+    this.pointers = new Map(); // pointerId -> { dir, order }
+    this.order = 0;
+    this.keys = { left: false, right: false };
+    this.impulses = [];
+    this.onPress = null;   // any tap/click on the play area
+    this.onConfirm = null; // Space / Enter
+    this.onPause = null;   // P
+
+    const dirOf = (e) => (e.clientX < window.innerWidth / 2 ? -1 : 1);
+    const onUi = (e) => e.target.closest && e.target.closest('button');
+
+    window.addEventListener('pointerdown', (e) => {
+      if (onUi(e)) return;
+      const dir = dirOf(e);
+      this.pointers.set(e.pointerId, { dir, order: ++this.order });
+      this.impulses.push(dir);
+      if (this.onPress) this.onPress();
+    });
+    window.addEventListener('pointermove', (e) => {
+      const ptr = this.pointers.get(e.pointerId);
+      if (ptr) ptr.dir = dirOf(e); // sliding a finger across the middle switches sides
+    });
+    const release = (e) => this.pointers.delete(e.pointerId);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    window.addEventListener('blur', () => this.clear());
+
+    // Stop iOS double-tap zoom, text selection callouts and rubber-band scrolling.
+    document.addEventListener('touchstart', (e) => { if (!onUi(e)) e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'arrowleft' || k === 'a') {
+        if (!e.repeat) this.impulses.push(-1);
+        this.keys.left = true;
+      } else if (k === 'arrowright' || k === 'd') {
+        if (!e.repeat) this.impulses.push(1);
+        this.keys.right = true;
+      } else if ((k === ' ' || k === 'enter') && !e.repeat) {
+        if (this.onConfirm) this.onConfirm();
+      } else if (k === 'p' && !e.repeat && this.onPause) {
+        this.onPause();
+      } else {
+        return;
+      }
+      e.preventDefault();
+    });
+    window.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'arrowleft' || k === 'a') this.keys.left = false;
+      if (k === 'arrowright' || k === 'd') this.keys.right = false;
+    });
+  }
+
+  // -1, 0 or 1. The most recently pressed finger wins; otherwise the keyboard.
+  get steer() {
+    let latest = null;
+    for (const ptr of this.pointers.values()) {
+      if (!latest || ptr.order > latest.order) latest = ptr;
+    }
+    if (latest) return latest.dir;
+    return (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
+  }
+
+  takeImpulse() {
+    return this.impulses.shift() || 0;
+  }
+
+  clear() {
+    this.pointers.clear();
+    this.keys.left = this.keys.right = false;
+    this.impulses.length = 0;
+  }
+}
+Object.defineProperties(__exports, { Input: { get: () => Input, enumerable: true } });
+});
+__define('render', (__exports) => {
+// Rendering, in three layers composited by main.js:
+//   1. renderSky   – sky colour and stars, at virtual (pixel-art) resolution
+//   2. drawGroundHD – the farm scene, drawn straight onto the device-resolution canvas from the full-size
+//                     illustration with high-quality smoothing, since it's detailed art rather than pixel art
+//   3. renderWorld – clouds, wind gusts, particles and the player, at virtual resolution on a transparent layer
+//   4. drawFlyersHD – crows, owls and bees, drawn on the device-resolution canvas from their finer (2x) pixel art
+// Layers 1 and 3 are scaled up with nearest-neighbour so the pixel art stays crisp.
+const { VIEW_W, PLATFORM, GROUND } = __require('config');
+const { cloudSprite, CLOUD_OFFSET } = __require('clouds');
+const { skyPosition, skyColor, drawStars, nightAmount } = __require('sky');
+const { flyerSprite, flyerSize, hasNightPalette, FLAP_RATE, ART_SCALE } = __require('flyers');
+const { drawGust } = __require('gust');
+
+const COLORS = {
+  springCap: '#e76f51',
+  springCoil: '#c98a2e',
+  player: '#e76f51',
+  eye: '#1d2b3a',
+  grassFallback: '#3f9a35',
+  puff: '#ffffff',
+  puffWarm: '#fff1dc',
+};
+
+function renderSky(ctx, game) {
+  // The camera starts at 0 and only moves up, so -camY is how far the view has climbed.
+  const sky = skyPosition(-game.camY);
+  ctx.fillStyle = skyColor(sky);
+  ctx.fillRect(0, 0, VIEW_W, __require('config').VIEW_H);
+  drawStars(ctx, sky, game.camY, game.time);
+}
+
+function renderWorld(ctx, game) {
+  const cam = game.camY;
+  const sy = (y) => Math.round(y - cam);
+  ctx.clearRect(0, 0, VIEW_W, __require('config').VIEW_H);
+
+  for (const pl of game.platforms) {
+    if (pl.type !== 'ground') drawPlatformCloud(ctx, pl, Math.round(pl.x), sy(pl.y));
+  }
+  for (const o of game.obstacles) if (o.kind === 'gust') drawGust(ctx, Math.round(o.x), sy(o.y), o.t); // curled wind streaks
+  drawParticles(ctx, game.particles, sy);
+
+  const p = game.player;
+  const px = Math.round(p.x), py = sy(p.y);
+  const ch = game.character;
+  drawPlayer(ctx, p, px, py, ch);
+  if (px + ch.body.w > VIEW_W) drawPlayer(ctx, p, px - VIEW_W, py, ch); // wrap-around copy
+}
+
+// Farm scene the run starts from, at full resolution (assets/farm-ground-hd.webp). It spans the game's width,
+// keeps its own aspect ratio, and sits with its bottom edge GROUND.height below the grass line the player stands on.
+const farmArt = new Image();
+farmArt.src = 'assets/farm-ground-hd.webp';
+
+// scaleX / scaleY: device pixels per virtual pixel on the target canvas.
+function drawGroundHD(ctx, game, scaleX, scaleY) {
+  // Snap to the virtual pixel grid, like the sprites, so the player's feet stay on the same grass line.
+  const bottom = Math.round(game.groundY - game.camY) + GROUND.height;
+  const loaded = farmArt.complete && farmArt.naturalWidth > 0;
+  const artH = loaded ? (VIEW_W * farmArt.naturalHeight) / farmArt.naturalWidth : GROUND.artHeight;
+  if (bottom - artH > __require('config').VIEW_H) return; // scrolled off for good
+
+  if (!loaded) {
+    ctx.fillStyle = COLORS.grassFallback; // until the image arrives
+    ctx.fillRect(0, (bottom - GROUND.height) * scaleY, VIEW_W * scaleX, GROUND.height * scaleY);
+    return;
+  }
+  const w = VIEW_W * scaleX;
+  const h = w * (farmArt.naturalHeight / farmArt.naturalWidth); // proportional, never stretched
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(farmArt, 0, bottom * scaleY - h, w, h);
+  ctx.imageSmoothingEnabled = false;
+}
+
+function drawPlatformCloud(ctx, pl, x, y) {
+  if (pl.broken) {
+    // Dissipate: fade and sink.
+    ctx.globalAlpha = Math.max(0, 1 - pl.breakT / PLATFORM.breakTime);
+    y += Math.round(pl.breakT * 30);
+  }
+  ctx.drawImage(cloudSprite(pl.type, pl.w), x + CLOUD_OFFSET.x, y + CLOUD_OFFSET.y);
+  if (pl.type === 'spring') {
+    // Little spring sitting on the middle puff.
+    const cx = x + Math.round(pl.w / 2);
+    ctx.fillStyle = COLORS.springCoil;
+    ctx.fillRect(cx - 3, y - 3, 6, 1);
+    ctx.fillRect(cx - 2, y - 5, 4, 1);
+    ctx.fillRect(cx - 3, y - 7, 6, 1);
+    ctx.fillStyle = COLORS.springCap;
+    ctx.fillRect(cx - 4, y - 9, 8, 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Crows, owls and bees, drawn straight onto the device-resolution canvas so their 2x pixel art keeps its detail.
+// scaleX / scaleY: device pixels per game pixel. Positions snap to the art's own pixel grid.
+function drawFlyersHD(ctx, game, scaleX, scaleY) {
+  const night = nightAmount(skyPosition(-game.camY));
+  const snap = (v) => Math.round(v * ART_SCALE) / ART_SCALE;
+  ctx.imageSmoothingEnabled = false;
+  for (const o of game.obstacles) {
+    if (o.kind === 'gust') continue;
+    const size = flyerSize(o.kind);
+    const wingsUp = Math.sin(o.t * FLAP_RATE[o.kind]) > 0;
+    const right = o.vx > 0;
+    // Sprites overhang their hitbox (beaks, tails, wingtips), so center them on it.
+    const sx = snap(o.x - (size.w - o.w) / 2);
+    const sy = snap(o.y - game.camY + (o.h - size.h) / 2);
+    // Wrap-around copies while straddling a screen edge.
+    const xs = [sx];
+    if (sx + size.w > VIEW_W) xs.push(sx - VIEW_W);
+    if (sx < 0) xs.push(sx + VIEW_W);
+    for (const cx of xs) {
+      const draw = (sprite) => ctx.drawImage(sprite, Math.round(cx * scaleX), Math.round(sy * scaleY),
+        Math.round(size.w * scaleX), Math.round(size.h * scaleY));
+      draw(flyerSprite(o.kind, wingsUp, right));
+      if (night > 0 && hasNightPalette(o.kind)) {
+        // Cross-fade to the lighter night feathers as the sky darkens.
+        ctx.globalAlpha = night;
+        draw(flyerSprite(o.kind, wingsUp, right, true));
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
+
+function drawParticles(ctx, particles, sy) {
+  for (const pt of particles) {
+    const f = 1 - pt.age / pt.life;
+    ctx.globalAlpha = f * 0.9;
+    ctx.fillStyle = pt.size === 3 ? COLORS.puff : COLORS.puffWarm;
+    const s = f > 0.5 ? pt.size : Math.max(1, pt.size - 1); // shrink as they fade
+    ctx.fillRect(Math.round(pt.x - s / 2), sy(pt.y) - Math.round(s / 2), s, s);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPlayer(ctx, p, x, y, character) {
+  const { art, body } = character;
+  if (art) {
+    // Faces whichever way the player last steered; tumbles upside-down when knocked out.
+    const img = p.facing < 0 ? art.left : art.right;
+    if (p.dead) {
+      ctx.save();
+      ctx.translate(x, y + body.h);
+      ctx.scale(1, -1);
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, x, y);
+    }
+    return;
+  }
+  // Placeholder square.
+  ctx.fillStyle = COLORS.player;
+  ctx.fillRect(x, y, body.w, body.h);
+  ctx.fillStyle = COLORS.eye;
+  const ex = p.facing > 0 ? x + 7 : x + 3;
+  if (p.dead) {
+    ctx.fillRect(ex, y + 4, 1, 1); ctx.fillRect(ex + 2, y + 4, 1, 1);
+    ctx.fillRect(ex + 1, y + 5, 1, 1);
+    ctx.fillRect(ex, y + 6, 1, 1); ctx.fillRect(ex + 2, y + 6, 1, 1);
+  } else {
+    ctx.fillRect(ex, y + 4, 2, 2);
+    ctx.fillRect(ex + 3, y + 4, 2, 2);
+  }
+}
+Object.defineProperties(__exports, { renderSky: { get: () => renderSky, enumerable: true }, renderWorld: { get: () => renderWorld, enumerable: true }, drawGroundHD: { get: () => drawGroundHD, enumerable: true }, drawPlatformCloud: { get: () => drawPlatformCloud, enumerable: true }, drawFlyersHD: { get: () => drawFlyersHD, enumerable: true }, drawParticles: { get: () => drawParticles, enumerable: true } });
+});
+__define('home', async (__exports) => {
+// Home screen (Figma frames 183:721 and 217:61): character carousel, Tap to Play, and Leaderboard + My Stats side by
+// side, over the sunset farm scene with a drifting cloud, a bee and a bird. Tap to Play opens play.html; Leaderboard
+// and My Stats are screens on this page (with browser/phone back support). The ⓘ button opens How to Play.
+const { CHARACTERS, DEFAULT_CHARACTER } = __require('characters');
+const { loadBest, loadCharacterId, loadStats, saveCharacterId } = __require('storage');
+const { flyerSprite, FLAP_RATE } = __require('flyers');
+const { drawGust } = __require('gust');
+const { cloudSprite } = __require('clouds');
+
+const $ = (id) => document.getElementById(id);
+const IDS = Object.keys(CHARACTERS);
+
+let selected = CHARACTERS[loadCharacterId(DEFAULT_CHARACTER)] ? loadCharacterId(DEFAULT_CHARACTER) : DEFAULT_CHARACTER;
+
+// ---------- Character carousel ----------
+
+// The same placeholder square the game draws for characters without art.
+function placeholderSprite() {
+  const c = document.createElement('canvas');
+  c.width = 14;
+  c.height = 14;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#e76f51';
+  ctx.fillRect(0, 0, 14, 14);
+  ctx.fillStyle = '#1d2b3a';
+  ctx.fillRect(7, 4, 2, 2);
+  ctx.fillRect(10, 4, 2, 2);
+  return c;
+}
+
+function renderCharacter(hop = false) {
+  const def = CHARACTERS[selected];
+  $('name').textContent = def.name;
+  $('print').textContent = def.print || '';
+  // Each character's print as the card background (the art's white window lines up with the white card).
+  $('card').style.backgroundImage = def.pattern ? `url("${def.pattern}")` : '';
+  // Name and print take a colour from the character's own print; so does Tap to Play.
+  document.querySelector('.card').style.color = def.color || '';
+  // Tap to Play (and My Stats' share button) take the selected character's colour.
+  $('play').style.backgroundColor = def.color || '';
+  $('share-score').style.backgroundColor = def.color || '';
+  const art = $('art');
+  if (def.sprite) {
+    const img = document.createElement('img');
+    img.src = def.sprite;
+    img.alt = def.name;
+    art.replaceChildren(img);
+  } else {
+    art.replaceChildren(placeholderSprite());
+  }
+  if (hop) {
+    art.classList.remove('hop');
+    void art.offsetWidth;
+    art.classList.add('hop');
+  }
+}
+
+function step(delta) {
+  selected = IDS[(IDS.indexOf(selected) + delta + IDS.length) % IDS.length];
+  saveCharacterId(selected);
+  renderCharacter(true);
+}
+
+$('prev').addEventListener('click', () => step(-1));
+$('next').addEventListener('click', () => step(1));
+
+// Horizontal swipe on the card.
+let swipeX = null;
+$('card').addEventListener('pointerdown', (e) => { swipeX = e.clientX; });
+$('card').addEventListener('pointerup', (e) => {
+  if (swipeX === null) return;
+  const dx = e.clientX - swipeX;
+  swipeX = null;
+  if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
+});
+$('card').addEventListener('pointercancel', () => { swipeX = null; });
+
+// ---------- Play ----------
+
+$('play').addEventListener('click', () => {
+  saveCharacterId(selected);
+  parent.__kioskGo('play');
+});
+
+// ---------- Screens: Home, Leaderboard, My Stats ----------
+
+const SCREENS = { home: 'screen-home', leaderboard: 'screen-leaderboard', stats: 'screen-stats' };
+
+function show(name) {
+  for (const [key, id] of Object.entries(SCREENS)) $(id).hidden = key !== name;
+  window.scrollTo(0, 0);
+  if (name === 'stats') renderStats();
+  if (name === 'leaderboard') renderBoard();
+  if (name === 'home') fitToScreen();
+}
+
+// Each screen is a history entry, so the phone's back gesture returns to Home.
+function open(name) {
+  show(name);
+}
+document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => show('home')));
+$('open-leaderboard').addEventListener('click', () => open('leaderboard'));
+$('open-stats').addEventListener('click', () => open('stats'));
+
+// ---------- Leaderboard (sample data until score submission exists) ----------
+
+// 14 sample players; the player joins them with their real best score, making 15 places.
+const SAMPLE_PLAYERS = [
+  ['MeadowRose', 2847], ['FarmhandKate', 2614], ['CloverfieldJ', 2389], ['HayloftHannah', 2211],
+  ['PiggyBankPete', 2058], ['BarnOwlBea', 1902], ['DuckPondDev', 1774], ['RoosterRay', 1645],
+  ['MilkmaidMo', 1512], ['FieldMouseFi', 1390], ['BarnDanceBo', 1180], ['SheepishSam', 905],
+  ['HenHouseHal', 640], ['CalfCoraline', 420],
+];
+const PRIZE_PLACES = 10;
+
+// The board with the player placed by their best score (ahead of anyone they tie with).
+function leaderboard() {
+  const me = { name: 'You', score: loadBest(), me: true };
+  const others = SAMPLE_PLAYERS.map(([name, score]) => ({ name, score }));
+  return [...others, me].sort((a, b) => b.score - a.score || (a.me ? -1 : b.me ? 1 : 0));
+}
+
+// Prize wording from the design for #1–3; #4–10 win a single item; 11+ win nothing.
+function prizeFor(rank) {
+  if (rank === 1) return 'PR Box & Exclusive Needlepoint Kit';
+  if (rank <= 3) return 'PR Box';
+  if (rank <= PRIZE_PLACES) return 'Single item';
+  return '';
+}
+
+function row(entry, i) {
+  const rank = i + 1;
+  const tier = rank === 1 ? ' first' : rank <= 3 ? '' : rank <= PRIZE_PLACES ? ' rest' : ' none';
+  const li = document.createElement('li');
+  li.className = `row${tier}${entry.me ? ' me' : ''}`;
+  li.innerHTML = `
+    <span class="rank"></span>
+    <span class="who"><span class="who-name"></span><span class="prize"></span></span>
+    <span class="score"><span class="score-value"></span><span class="score-unit">ft</span></span>`;
+  li.querySelector('.rank').textContent = rank;
+  li.querySelector('.who-name').textContent = entry.name;
+  const prize = prizeFor(rank);
+  if (prize) li.querySelector('.prize').textContent = prize;
+  else li.querySelector('.prize').remove();
+  li.querySelector('.score-value').textContent = entry.score.toLocaleString('en-US');
+  return li;
+}
+
+function renderBoard() {
+  $('board').replaceChildren(...leaderboard().map(row));
+}
+
+// ---------- My Stats (tracked locally by play.html after every run) ----------
+
+// Ways a run can end, in the game's own art (drawn once, reused).
+const ENDINGS = [
+  { cause: 'fall', label: 'Fell off the clouds', art: () => cloudSprite('normal', 34) },
+  { cause: 'crow', label: 'Bird', art: () => flyerSprite('crow', true, true) },
+  { cause: 'butterfly', label: 'Bee', art: () => flyerSprite('butterfly', true, true) },
+  { cause: 'owl', label: 'Owl', art: () => flyerSprite('owl', true, true) },
+  { cause: 'gust', label: 'Wind gust', art: () => { const c = document.createElement('canvas'); c.width = 38; c.height = 26; drawGust(c.getContext('2d'), 2, 6, 0); return c; } },
+];
+
+// A crisp copy of a sprite at the largest whole-number scale that fits the 40 × 28 icon tile.
+function icon(sprite) {
+  const c = document.createElement('canvas');
+  c.width = sprite.width;
+  c.height = sprite.height;
+  c.getContext('2d').drawImage(sprite, 0, 0);
+  const scale = Math.max(1, Math.floor(Math.min(40 / sprite.width, 28 / sprite.height)));
+  c.style.width = `${sprite.width * scale}px`;
+  c.style.height = `${sprite.height * scale}px`;
+  return c;
+}
+
+function renderEndings(byCause) {
+  const list = $('stat-endings');
+  const total = Object.values(byCause).reduce((a, b) => a + b, 0);
+  if (!total) {
+    list.innerHTML = '<li class="stat-empty">Play a run to see how it ends</li>';
+    return;
+  }
+  const most = Math.max(...ENDINGS.map((e) => byCause[e.cause] || 0));
+  const sorted = [...ENDINGS].sort((a, b) => (byCause[b.cause] || 0) - (byCause[a.cause] || 0));
+  list.replaceChildren(...sorted.map((e) => {
+    const n = byCause[e.cause] || 0;
+    const li = document.createElement('li');
+    li.className = 'ending';
+    li.innerHTML = '<span class="ending-icon"></span><span class="ending-name"></span><span class="ending-count"></span><span class="ending-bar"><span></span></span>';
+    li.querySelector('.ending-icon').append(icon(e.art()));
+    li.querySelector('.ending-name').textContent = e.label;
+    li.querySelector('.ending-count').textContent = n;
+    li.querySelector('.ending-bar span').style.width = `${most ? (n / most) * 100 : 0}%`;
+    return li;
+  }));
+}
+
+function renderStats() {
+  const stats = loadStats();
+  const best = loadBest();
+  $('stat-best').textContent = best.toLocaleString('en-US');
+  $('stat-runs').textContent = stats.runs.toLocaleString('en-US');
+  $('stat-total').textContent = stats.totalFt.toLocaleString('en-US');
+  $('stat-avg').textContent = (stats.runs ? Math.round(stats.totalFt / stats.runs) : 0).toLocaleString('en-US');
+
+  // Same rank as the Leaderboard screen (sample players for now).
+  if (best > 0) {
+    const board = leaderboard();
+    const rank = board.findIndex((e) => e.me) + 1;
+    $('stat-rank').textContent = `#${rank}`;
+    const tenth = board.filter((e) => !e.me)[PRIZE_PLACES - 1].score;
+    $('stat-rank-note').textContent = rank <= PRIZE_PLACES
+      ? prizeFor(rank)
+      : `${(tenth - best + 1).toLocaleString('en-US')} ft to reach the top ${PRIZE_PLACES}`;
+  } else {
+    $('stat-rank').textContent = '–';
+    $('stat-rank-note').textContent = 'Play a run to get ranked';
+  }
+  renderEndings(stats.byCause || {});
+
+  const [favId] = Object.entries(stats.byCharacter).sort((a, b) => b[1] - a[1])[0] || [];
+  const box = $('stat-friend');
+  box.replaceChildren();
+  const def = CHARACTERS[favId];
+  if (!def) {
+    box.innerHTML = '<span class="stat-empty">Play a run to find out</span>';
+    return;
+  }
+  const img = document.createElement('img');
+  img.src = def.sprite;
+  img.alt = '';
+  const name = document.createElement('span');
+  name.className = 'stat-friend-name';
+  name.textContent = def.name;
+  name.style.color = def.color || '';
+  box.append(img, name);
+}
+
+// ---------- How to Play (ⓘ) ----------
+
+function openHowTo() {
+  // The selected character, crisp, at the largest whole-number scale that fits the 90 × 63 slot.
+  const def = CHARACTERS[selected];
+  const box = $('howto-art');
+  box.replaceChildren();
+  if (def.sprite) {
+    const img = new Image();
+    img.alt = def.name;
+    img.onload = () => {
+      const scale = Math.max(1, Math.floor(Math.min(90 / img.naturalWidth, 63 / img.naturalHeight)));
+      img.style.width = `${img.naturalWidth * scale}px`;
+      img.style.height = `${img.naturalHeight * scale}px`;
+    };
+    img.src = def.sprite;
+    box.append(img);
+  }
+  $('howto-layer').hidden = false;
+  $('howto-close').focus();
+}
+
+function closeHowTo() {
+  $('howto-layer').hidden = true;
+  $('info').focus();
+}
+
+$('info').addEventListener('click', openHowTo);
+$('howto-close').addEventListener('click', closeHowTo);
+// Tapping the blurred area outside the box also closes it.
+$('howto-layer').addEventListener('click', (e) => { if (e.target === $('howto-layer')) closeHowTo(); });
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && !$('howto-layer').hidden) { e.preventDefault(); closeHowTo(); }
+});
+
+// ---------- Fit to screen ----------
+
+// Fit any screen without scrolling. The spacing already tightens on shorter screens (see .home in home.css). After
+// that, the character card shrinks (to fit the height, and the width on narrow phones) while the buttons, arrows
+// and header keep their size. Only if the card is already at its smallest does the whole screen scale down.
+const home = document.querySelector('.home');
+const cardEl = $('card');
+const CARD_SIZE = 267;      // the card's design size (.pattern in home.css)
+const CARD_MIN_SCALE = 0.6; // never smaller than ~160px
+const ARROWS_W = 2 * (44 - 18); // the two arrow buttons' share of the carousel row (.step: 44px wide, -9px margins)
+function fitToScreen() {
+  home.style.zoom = '';
+  cardEl.style.zoom = '';
+  const available = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const picker = document.querySelector('.picker');
+  const byWidth = (picker.clientWidth - ARROWS_W) / CARD_SIZE;
+  const over = home.scrollHeight - available;
+  const byHeight = over > 0 ? (CARD_SIZE - over - 1) / CARD_SIZE : 1;
+  const scale = Math.min(1, byWidth, byHeight);
+  if (scale < 1) cardEl.style.zoom = String(Math.max(CARD_MIN_SCALE, Math.floor(scale * 1000) / 1000));
+
+  const needed = home.scrollHeight;
+  // The bottom padding keeps the farm art clear. The art itself isn't zoomed, so that space must stay full size.
+  const reserve = parseFloat(getComputedStyle(home).paddingBottom) || 0;
+  // Round down with a pixel of headroom so rounding never leaves a 1px scroll.
+  if (needed > available) {
+    const z = (available - reserve - 1) / (needed - reserve);
+    home.style.zoom = String(Math.max(0.6, Math.floor(z * 1000) / 1000));
+  }
+  placeBird();
+}
+window.addEventListener('resize', fitToScreen);
+window.visualViewport?.addEventListener('resize', fitToScreen);
+document.fonts?.ready.then(fitToScreen);
+window.addEventListener('load', fitToScreen);
+
+// Width of the home background scene: the whole screen on a phone, a phone-width column on wider screens.
+const sceneWidth = () => document.querySelector('.home-bg').clientWidth || window.innerWidth;
+
+// ---------- Clouds drifting behind the home screen ----------
+
+// One of the game's normal clouds at its 2× scale, low behind the barn: farm is a share of the farm art's width up
+// from the bottom, so it always sits just above the mountains. x is where it starts across the width; speed is
+// css px/s (negative drifts left). It wraps around the edges. Still for reduced motion.
+const HOME_CLOUDS = [
+  { w: 44, farm: 0.29, x: 0.5, speed: -6 },
+];
+
+function startClouds() {
+  const layer = $('home-clouds');
+  if (!layer) return;
+  const clouds = HOME_CLOUDS.map((c) => {
+    const sprite = cloudSprite('normal', c.w);
+    const el = document.createElement('canvas');
+    el.className = 'home-cloud';
+    el.width = sprite.width;
+    el.height = sprite.height;
+    el.getContext('2d').drawImage(sprite, 0, 0);
+    el.style.width = `${sprite.width * 2}px`;
+    el.style.height = `${sprite.height * 2}px`;
+    if (c.farm !== undefined) el.style.bottom = `calc(var(--farm-w) * ${c.farm})`;
+    else el.style.top = `${c.top * 100}%`;
+    layer.append(el);
+    return { ...c, el, w: sprite.width * 2, pos: c.x * sceneWidth() };
+  });
+  const place = () => clouds.forEach((c) => { c.el.style.transform = `translateX(${c.pos.toFixed(1)}px)`; });
+  place();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let last = null;
+  function frame(now) {
+    const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!home.hidden) {
+      for (const c of clouds) {
+        c.pos += c.speed * dt;
+        // Wrap once fully off-screen.
+        if (c.pos > sceneWidth()) c.pos = -c.w;
+        else if (c.pos < -c.w) c.pos = sceneWidth();
+      }
+      place();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// The bird's flight line: midway down the open sky between "CLIMB" and the character card, wherever the layout
+// puts them on this screen.
+function placeBird() {
+  const bird = $('home-bird');
+  if (!bird || home.hidden) return;
+  const climb = document.querySelector('.brand .eyebrow').getBoundingClientRect();
+  const card = $('card').getBoundingClientRect();
+  const climbText = climb.bottom - parseFloat(getComputedStyle(document.querySelector('.brand .eyebrow')).paddingBottom) * (parseFloat(home.style.zoom) || 1);
+  bird.style.top = `${Math.round((climbText + card.top) / 2 - bird.offsetHeight / 2)}px`;
+}
+
+// ---------- Bee and bird flying across ----------
+
+// The game's flyers crossing the screen now and then: each crosses, rests off-screen for a moment, then comes back
+// the other way, facing where it's going. Off for reduced motion.
+//   bee: its fluttery game path (surging and stalling sideways, bobbing on two waves), low by the barn.
+//   bird: the crow's steady glide with a gentle bob, high in the sky, smaller than in the game so it reads as far off.
+const HOME_FLYERS = [
+  {
+    id: 'home-bee', kind: 'butterfly', speed: 70, firstWait: 0.8,
+    surge: (t) => 0.4 + 0.9 * Math.abs(Math.sin(t * 2.6)),
+    bob: (t) => Math.sin(t * 3.1) * 12 + Math.sin(t * 8.3) * 4,
+  },
+  {
+    id: 'home-bird', kind: 'crow', speed: 48, firstWait: 2.5,
+    surge: () => 1,
+    bob: (t) => Math.sin(t * 2.2) * 5,
+  },
+];
+
+function startFlyer({ id, kind, speed, firstWait, surge, bob }) {
+  const canvas = $(id);
+  if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const ctx = canvas.getContext('2d');
+  let dir = 1;
+  let x = -60;
+  let wait = firstWait;
+  let t = 0;
+  let last = null;
+  let drawn = '';
+
+  function frame(now) {
+    const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!home.hidden) {
+      if (wait > 0) {
+        wait -= dt;
+      } else {
+        t += dt;
+        x += dir * speed * surge(t) * dt;
+        canvas.style.transform = `translate(${x.toFixed(1)}px, ${bob(t).toFixed(1)}px)`;
+        canvas.style.visibility = 'visible';
+        const wingsUp = Math.sin(t * FLAP_RATE[kind]) > 0;
+        const key = `${wingsUp}${dir}`;
+        if (key !== drawn) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(flyerSprite(kind, wingsUp, dir > 0), 0, 0);
+          drawn = key;
+        }
+        if ((dir > 0 && x > sceneWidth() + 10) || (dir < 0 && x < -60)) {
+          canvas.style.visibility = 'hidden';
+          dir = -dir;
+          wait = 1 + Math.random() * 2.5;
+        }
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- Boot ----------
+
+// Preload every print so switching characters never flashes an empty card.
+for (const def of Object.values(CHARACTERS)) if (def.pattern) new Image().src = def.pattern;
+renderCharacter();
+show('home');
+startClouds();
+HOME_FLYERS.forEach(startFlyer);
+});
+__define('main', async (__exports) => {
+// Boot: full-viewport stage scaling, fixed-timestep loop, and wiring between the game and the HTML overlays.
+const { VIEW_W, VIEW_H_MIN, VIEW_H_MAX, setViewHeight, FIXED_DT, MAX_FRAME_DT } = __require('config');
+const { Game } = __require('game');
+const { Input } = __require('input');
+const { renderSky, renderWorld, drawGroundHD, drawFlyersHD } = __require('render');
+const { loadBest, saveBest, loadCharacterId, recordRun } = __require('storage');
+const { DEFAULT_CHARACTER, CHARACTERS, makeCharacter } = __require('characters');
+const { loadCharacterArt } = __require('sprites');
+
+const $ = (id) => document.getElementById(id);
+const viewport = $('viewport');
+const stage = $('stage');
+const canvas = $('game');
+const ctx = canvas.getContext('2d');
+
+// Pixel-art layers are drawn at virtual resolution into these buffers, then scaled up with nearest-neighbor.
+// The farm scene is drawn between them, directly at device resolution (see render.js).
+const skyBuffer = document.createElement('canvas');
+const worldBuffer = document.createElement('canvas');
+skyBuffer.width = worldBuffer.width = VIEW_W;
+const skyCtx = skyBuffer.getContext('2d');
+const worldCtx = worldBuffer.getContext('2d');
+let game = null;
+
+// Fill the real viewport. Width is fixed at VIEW_W art pixels; the virtual height follows the screen's
+// aspect ratio so there is nothing to letterbox on phones. Only shapes outside VIEW_H_MIN–MAX
+// (desktop windows, tablets) letterbox, with the stage kept at the bottom and plain white around it.
+// On wide screens the game is never wider than the home screen's scene column (--scene-w in home.css), so the two
+// pages line up, with white on either side.
+const SCENE_W = 402; // iPhone 16 Pro width
+
+function fitStage() {
+  const cw = viewport.clientWidth;
+  const ch = viewport.clientHeight;
+  if (!cw || !ch) return;
+  const dpr = (window.devicePixelRatio || 1) * (window.KIOSK_SCALE || 1);
+  const aw = cw >= 500 ? Math.min(cw, SCENE_W) : cw; // phones of any width use the full screen
+
+  const ideal = Math.round((VIEW_W * ch) / aw);
+  const vh = Math.min(VIEW_H_MAX, Math.max(VIEW_H_MIN, ideal));
+  if (vh !== __require('config').VIEW_H || skyBuffer.height !== vh) {
+    setViewHeight(vh);
+    skyBuffer.height = worldBuffer.height = vh;
+    // Before the run starts, rebuild so the ground sits on the new bottom edge.
+    if (game && game.state === 'ready') game.reset();
+  }
+
+  let w = aw, h = ch;
+  if (ideal !== vh) {
+    const scale = Math.min(aw / VIEW_W, ch / vh);
+    w = VIEW_W * scale;
+    h = vh * scale;
+  }
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  stage.style.width = `${w}px`;
+  stage.style.height = `${h}px`;
+  stage.style.left = `${(cw - w) / 2}px`;
+  stage.style.top = `${ch - h}px`;
+  ctx.imageSmoothingEnabled = false;
+}
+fitStage();
+new ResizeObserver(fitStage).observe(viewport);
+window.addEventListener('resize', fitStage);
+window.visualViewport?.addEventListener('resize', fitStage);
+
+// Whoever was picked on the Character tab (home page), or the sheep if nobody has been picked yet.
+const savedId = loadCharacterId(DEFAULT_CHARACTER);
+const characterId = CHARACTERS[savedId] ? savedId : DEFAULT_CHARACTER;
+const art = await loadCharacterArt(CHARACTERS[characterId]);
+game = new Game(makeCharacter(characterId, art ? { body: art.body, art } : {}));
+const input = new Input();
+let best = loadBest();
+let restartReadyAt = 0;
+
+const landscape = window.matchMedia('(orientation: landscape) and (pointer: coarse)');
+
+function show(el, visible) {
+  el.classList.toggle('hidden', !visible);
+}
+
+// 3-2-1-Go before every run. The player rests on the grass until "Go!", which gives the first bounce.
+const COUNTDOWN = ['3', '2', '1', 'Go!'];
+const COUNTDOWN_STEP = 0.7; // seconds per number
+let countdown = null; // seconds elapsed while counting down, or null when not counting
+let countdownShown = '';
+
+function beginCountdown() {
+  $('countdown-number').style.color = CHARACTERS[characterId].color || '';
+  input.clear();
+  countdown = 0;
+  countdownShown = '';
+  show($('screen-countdown'), true);
+}
+
+function tickCountdown(dt) {
+  if (countdown === null) return;
+  countdown += dt;
+  const step = Math.floor(countdown / COUNTDOWN_STEP);
+  if (step >= COUNTDOWN.length - 1 && game.state === 'ready') {
+    input.clear();
+    game.start();
+  }
+  if (step >= COUNTDOWN.length) {
+    countdown = null;
+    show($('screen-countdown'), false);
+    return;
+  }
+  if (COUNTDOWN[step] !== countdownShown) {
+    countdownShown = COUNTDOWN[step];
+    const el = $('countdown-number');
+    el.textContent = countdownShown;
+    el.classList.toggle('go', step === COUNTDOWN.length - 1);
+    // Restart the pop animation for each number.
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
+}
+
+function restart() {
+  if (performance.now() < restartReadyAt) return;
+  game.reset();
+  show($('screen-over'), false);
+  show($('btn-pause'), true);
+  beginCountdown();
+}
+
+function goHome() {
+  parent.__kioskGo('home');
+}
+
+// ---------- Pause ----------
+
+let userPaused = false;
+
+function pauseGame() {
+  if (userPaused || game.state === 'over') return;
+  userPaused = true;
+  input.clear();
+  showPauseMenu();
+  show($('screen-pause'), true);
+}
+
+function resumeGame() {
+  if (!userPaused) return;
+  userPaused = false;
+  input.clear(); // taps made on the menu never reach the character
+  show($('screen-pause'), false);
+}
+
+function showPauseMenu() {
+  show($('pause-menu'), true);
+  show($('howto'), false);
+}
+
+function showHowTo() {
+  // The art is whoever is playing, drawn crisp like in the game.
+  const sprite = game.character.art?.right;
+  const box = $('howto-art');
+  box.replaceChildren();
+  if (sprite) {
+    const c = document.createElement('canvas');
+    c.width = sprite.width;
+    c.height = sprite.height;
+    c.getContext('2d').drawImage(sprite, 0, 0);
+    // Largest whole-number scale that fits the 90 × 63 art slot.
+    const scale = Math.max(1, Math.floor(Math.min(90 / sprite.width, 63 / sprite.height)));
+    c.style.width = `${sprite.width * scale}px`;
+    c.style.height = `${sprite.height * scale}px`;
+    box.append(c);
+  }
+  show($('pause-menu'), false);
+  show($('howto'), true);
+}
+
+$('btn-pause').addEventListener('click', pauseGame);
+$('btn-resume').addEventListener('click', resumeGame);
+$('btn-howto').addEventListener('click', showHowTo);
+$('btn-back').addEventListener('click', showPauseMenu);
+$('btn-quit').addEventListener('click', goHome);
+input.onPause = () => {
+  if (!userPaused) pauseGame();
+  else if (!$('howto').classList.contains('hidden')) showPauseMenu();
+  else resumeGame();
+};
+// Leaving the app mid-run pauses it, so the menu is waiting on return instead of a run that carried on.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && (game.state === 'playing' || countdown !== null)) pauseGame();
+});
+
+const CAUSES = {
+  fall: 'You fell off the clouds.',
+  crow: 'A crow got you.',
+  owl: 'An owl got you.',
+  butterfly: 'A bee bumped you off course.',
+  gust: 'A gust blew you away.',
+};
+
+function showGameOver() {
+  const score = game.score;
+  recordRun(score, characterId, game.deathCause);
+  const isBest = score > best;
+  if (isBest) {
+    best = score;
+    saveBest(best);
+  }
+  $('over-cause').textContent = CAUSES[game.deathCause] || '';
+  $('over-score').textContent = score;
+  $('over-best').textContent = best;
+  $('screen-over').classList.toggle('is-best', isBest);
+  show($('screen-over'), true);
+  show($('btn-pause'), false);
+  // Brief lockout so a panicked tap doesn't skip the result.
+  restartReadyAt = performance.now() + 600;
+  const btn = $('btn-restart');
+  btn.disabled = true;
+  setTimeout(() => { btn.disabled = false; }, 600);
+}
+
+input.onConfirm = () => {
+  if (game.state === 'over') restart();
+};
+$('btn-restart').addEventListener('click', restart);
+$('btn-home').addEventListener('click', goHome);
+
+let lastScore = -1;
+function updateHud() {
+  if (game.score !== lastScore) $('hud-score').textContent = lastScore = game.score;
+}
+
+let last = performance.now();
+let acc = 0;
+let prevState = game.state;
+
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, MAX_FRAME_DT);
+  last = now;
+
+  const paused = document.hidden || landscape.matches || userPaused;
+  if (!paused) {
+    tickCountdown(dt);
+    acc += dt;
+    while (acc >= FIXED_DT) {
+      game.update(FIXED_DT, input);
+      acc -= FIXED_DT;
+    }
+  } else {
+    acc = 0;
+  }
+
+  if (game.state === 'over' && prevState !== 'over') showGameOver();
+  prevState = game.state;
+
+  renderSky(skyCtx, game);
+  renderWorld(worldCtx, game);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(skyBuffer, 0, 0, canvas.width, canvas.height);
+  drawGroundHD(ctx, game, canvas.width / VIEW_W, canvas.height / __require('config').VIEW_H);
+  ctx.drawImage(worldBuffer, 0, 0, canvas.width, canvas.height);
+  drawFlyersHD(ctx, game, canvas.width / VIEW_W, canvas.height / __require('config').VIEW_H);
+  updateHud();
+
+  requestAnimationFrame(frame);
+}
+beginCountdown();
+requestAnimationFrame(frame);
+});
+window.__kioskStart = (mode) => __require(mode === 'play' ? 'main' : 'home');
+})();
+</script>
+
+<script>
+(() => {
+  const FRAME_W = 402, FRAME_H = 874;          // an iPhone 16 Pro screen: the size the game is designed for
+  const frame = document.getElementById('kiosk-frame');
+  const bundle = document.getElementById('kiosk-bundle').textContent;
+  let mode = 'home';
+  let scale = 1;
+
+  function layout() {
+    // Whole-pixel width, so the frame's side edges land exactly on pixels (no hairlines).
+    scale = Math.floor(Math.min(innerHeight / FRAME_H, innerWidth / FRAME_W) * FRAME_W) / FRAME_W;
+    const left = Math.round((innerWidth - FRAME_W * scale) / 2);
+    const top = Math.round((innerHeight - FRAME_H * scale) / 2);
+    frame.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+    const w = frame.contentWindow;
+    if (w && w.KIOSK_SCALE !== scale) { w.KIOSK_SCALE = scale; w.dispatchEvent(new w.Event('resize')); }
+  }
+
+  // Load a screen ('home' or 'play') into the frame, like opening a page.
+  window.__kioskGo = (next) => {
+    mode = next;
+    const html = document.getElementById('page-' + next).innerHTML.replace('/*__KIOSK_BUNDLE__*/', () => bundle);
+    frame.srcdoc = '<!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.KIOSK_SCALE=' + scale +
+      ';<\/script>' + html;
+  };
+  frame.addEventListener('load', () => { try { frame.contentWindow.focus(); } catch (e) {} });
+
+  // Keys pressed while the page around the game has focus go to the game.
+  for (const type of ['keydown', 'keyup']) {
+    window.addEventListener(type, (e) => {
+      const w = frame.contentWindow;
+      if (!w) return;
+      w.dispatchEvent(new w.KeyboardEvent(type, { key: e.key, code: e.code, repeat: e.repeat, bubbles: true }));
+      if (e.key.startsWith('Arrow') || e.key === ' ' || e.key === 'Enter' || e.key === 'Backspace') e.preventDefault();
+    });
+  }
+  // While playing, tapping or clicking either side of the game steers too (left half / right half).
+  for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
+    window.addEventListener(type, (e) => {
+      if (mode !== 'play') return;
+      const w = frame.contentWindow;
+      if (!w) return;
+      const x = e.clientX < innerWidth / 2 ? 1 : FRAME_W - 1;
+      w.dispatchEvent(new w.PointerEvent(type, { pointerId: e.pointerId + 1000, clientX: x, clientY: FRAME_H / 2,
+        pointerType: e.pointerType, isPrimary: e.isPrimary, bubbles: true }));
+    });
+  }
+  window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  addEventListener('resize', layout);
+  layout();
+  __kioskGo('home');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "title": "Pattern Play",
+  "student": "Perry Bonner",
+  "tag": "Puzzle",
+  "input": ["mouse", "touch"],
+  "devices": ["desktop", "tablet"],
+  "instructions": "Tap the sewing pattern that was made in the decade shown.\nRead the cut and silhouette, not the color.\nCollect patterns for your Pattern Book."
+}

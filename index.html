@@ -201,6 +201,17 @@
     background: rgba(11,11,15,0.82); color: var(--ink);
     padding: 5px 8px; border-radius: 6px;
   }
+  .designed {
+    position: absolute; top: 10px; right: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(11,11,15,0.86); color: var(--accent);
+    border: 1px solid rgba(215,255,58,0.45);
+    padding: 5px 9px 5px 7px; border-radius: 999px;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .designed svg { width: 14px; height: 14px; flex: none; }
+  .designed span { color: var(--ink); }
   .card-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
   .pills { display: flex; gap: 6px; flex-wrap: wrap; }
   .pill {
@@ -240,6 +251,7 @@
     display: flex; align-items: center; gap: 10px;
   }
   .more-note::before { content: ""; width: 24px; height: 2px; background: var(--accent); }
+  .more-note[hidden] { display: none; }
 
   footer {
     padding: 0 var(--gutter) calc(var(--gutter) * 0.8);
@@ -421,6 +433,10 @@
                     devices: ["desktop"]           -> laptop only
                     devices: ["tablet", "phone"]   -> touch devices only
                   Leave it out to show the game on every device.
+     designedFor  optional: the ONE device the game plays best on: "desktop",
+                  "tablet" or "phone". Shows a "Designed for ..." badge on
+                  the card. It doesn't hide the game anywhere; "devices" does that.
+                  Change the badge wording in CONFIG.designedForLabels.
 
    PREVIEW ANOTHER DEVICE: add ?device=tablet to the address, e.g.
      http://localhost:8080/?device=tablet   (also: desktop, phone, all)
@@ -520,7 +536,9 @@ const CONFIG = {
   idleMinutes: 3,                              // auto-return to menu after this much inactivity
   idleWarningSeconds: 15,                      // countdown shown before auto-exit (0 = none)
   filterByDevice: true,                        // false = ignore "devices" and show every game
-  showOtherDeviceNote: true                    // "+2 more games on other devices in the room"
+  showOtherDeviceNote: true,                   // "+2 more games on other devices in the room"
+  // Badge text for each game's "designedFor". Edit the words freely, e.g. tablet: "iOS".
+  designedForLabels: { desktop: "Desktop", tablet: "iPad", phone: "Phone" }
 };
 
 /* ============================================================================
@@ -546,6 +564,12 @@ const CONFIG = {
      phone   = touch-first device with a short side under 600px
      ?device=desktop|tablet|phone|all in the address overrides the guess. */
   const DEVICE_NAMES = { desktop: "this computer", tablet: "this tablet", phone: "this phone", all: "all devices" };
+  const SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  const DEVICE_ICONS = {
+    desktop: SVG_OPEN + '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>',
+    tablet: SVG_OPEN + '<rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M11 18h2"/></svg>',
+    phone: SVG_OPEN + '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2"/></svg>'
+  };
   function detectDevice() {
     let forced = null;
     try { forced = new URLSearchParams(location.search).get("device"); } catch (e) {}
@@ -665,6 +689,15 @@ const CONFIG = {
         thumb.appendChild(makeFallback(game));
       }
       thumb.appendChild(el("span", "num", String(i + 1).padStart(2, "0")));
+      const designedLabel = game.designedFor && (CONFIG.designedForLabels || {})[game.designedFor];
+      if (designedLabel) {
+        const badge = el("span", "designed");
+        badge.innerHTML = DEVICE_ICONS[game.designedFor] || "";
+        badge.appendChild(document.createTextNode("Designed for "));
+        badge.appendChild(el("span", null, designedLabel));
+        badge.title = "Plays best on " + designedLabel;
+        thumb.appendChild(badge);
+      }
 
       const body = el("div", "card-body");
       const pills = el("div", "pills");

@@ -214,6 +214,13 @@ def check_game(folder, slug):
                 elif not isinstance(val, list) or not val or any(v not in valid for v in val):
                     r.fail(f'meta.json "{key}" must be a list using only: ' + ", ".join(f'"{v}"' for v in sorted(valid)))
                     problems += 1
+            designed = meta.get("designedFor")
+            if designed is not None:
+                if designed not in VALID_DEVICES:
+                    r.fail('meta.json "designedFor" must be one of: "desktop", "tablet", "phone" (just one, in quotes)')
+                    problems += 1
+                elif isinstance(meta.get("devices"), list) and designed not in meta["devices"]:
+                    r.warn(f'"designedFor" is "{designed}" but "devices" doesn\'t include it, so the game won\'t show there')
             if isinstance(meta.get("title"), str) and len(meta["title"]) > 30:
                 r.warn(f'title is {len(meta["title"])} characters; it may be cut off (30 max)')
             if not problems:
@@ -342,6 +349,8 @@ def build_games_block(reports):
         for key in ("input", "devices"):
             if isinstance(m.get(key), list) and m[key]:
                 parts.append(f"    {key}: {json.dumps(m[key])}")
+        if m.get("designedFor") in VALID_DEVICES:
+            parts.append(f"    designedFor: {js_string(m['designedFor'])}")
         entries.append("  {\n" + ",\n".join(parts) + "\n  }")
     lines.append(",\n".join(entries))
     lines.append("];")

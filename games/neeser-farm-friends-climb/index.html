@@ -5,17 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Farm Friends Climb</title>
 <style>
-  /* The phone-sized game (402 x 874) is scaled to the window height in the middle; the canvas behind it carries
-     the sky and the farm out to both edges. */
-  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FDE5A6; }
+  /* The game is a phone screen (402 x 874), scaled to the window height in the middle, on a plain background. */
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FFFFFF; }
   body { -webkit-user-select: none; user-select: none; touch-action: none; }
-  #kiosk-scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #kiosk-frame { position: fixed; left: 0; top: 0; width: 402px; height: 874px; border: 0; transform-origin: 0 0;
                  background: transparent; }
 </style>
 </head>
 <body>
-<canvas id="kiosk-scene"></canvas>
 <iframe id="kiosk-frame" title="Farm Friends Climb"></iframe>
 
 <template id="page-home">
@@ -585,8 +582,6 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 /* Kiosk: lists still scroll by wheel, drag or touch, but no scrollbar is drawn. */
 html { scrollbar-width: none; }
-/* The shell paints the same sky behind the frame, so no white shows along the frame's scaled edges. */
-html, body { background: transparent !important; }
 ::-webkit-scrollbar { display: none; }
 </style>
 </head>
@@ -1130,8 +1125,6 @@ button:disabled { opacity: 0.5; }
 
 /* Kiosk: lists still scroll by wheel, drag or touch, but no scrollbar is drawn. */
 html { scrollbar-width: none; }
-/* The shell paints the same sky behind the frame, so no white shows along the frame's scaled edges. */
-html, body { background: transparent !important; }
 ::-webkit-scrollbar { display: none; }
 </style>
 </head>
@@ -1216,12 +1209,6 @@ html, body { background: transparent !important; }
     if (e.key.startsWith('Esc')) arcade.postMessage({ type: 'arcade:exit' }, '*');   // the arcade's key, not ours
   }, true);
 })();
-
-window.KIOSK_FRAME = (game, canvas) => { if (parent.__kioskScene) parent.__kioskScene(game, canvas); };
-window.__kioskSky = (game) => {
-  const sky = __kioskSkyModule();
-  return sky.skyColor(sky.skyPosition(-game.camY));
-};
 window.__kioskStart("play");
 </script>
 </body>
@@ -3435,7 +3422,6 @@ function frame(now) {
   drawGroundHD(ctx, game, canvas.width / VIEW_W, canvas.height / __require('config').VIEW_H);
   ctx.drawImage(worldBuffer, 0, 0, canvas.width, canvas.height);
   drawFlyersHD(ctx, game, canvas.width / VIEW_W, canvas.height / __require('config').VIEW_H);
-  if (window.KIOSK_FRAME) window.KIOSK_FRAME(game, canvas);
   updateHud();
 
   requestAnimationFrame(frame);
@@ -3443,7 +3429,6 @@ function frame(now) {
 beginCountdown();
 requestAnimationFrame(frame);
 });
-window.__kioskSkyModule = () => __require('sky');
 window.__kioskStart = (mode) => __require(mode === 'play' ? 'main' : 'home');
 })();
 </script>
@@ -3452,72 +3437,16 @@ window.__kioskStart = (mode) => __require(mode === 'play' ? 'main' : 'home');
 (() => {
   const FRAME_W = 402, FRAME_H = 874;          // an iPhone 16 Pro screen: the size the game is designed for
   const frame = document.getElementById('kiosk-frame');
-  const sceneCanvas = document.getElementById('kiosk-scene');
-  const scene = sceneCanvas.getContext('2d');
   const bundle = document.getElementById('kiosk-bundle').textContent;
   let mode = 'home';
-  let scale = 1, left = 0, top = 0;
-
-  // Side scenery: the fence, trees and mountains half of each farm picture (no barn), repeated outward and mirrored
-  // every other copy so the joins line up.
-  const homeFarm = new Image(); homeFarm.src = 'assets/ui/home-farm.png';
-  const gameFarm = new Image(); gameFarm.src = 'assets/farm-ground-hd.webp';
-  const SLICE_FROM = 0.495;                    // where the barn ends in both pictures
-
-  function drawFarmSides(img, widthOnScreen, bottomY) {
-    if (!img.complete || !img.naturalWidth) return;
-    const k = widthOnScreen / img.naturalWidth;
-    const sx = Math.round(img.naturalWidth * SLICE_FROM), sw = img.naturalWidth - sx;
-    const dw = sw * k, dh = img.naturalHeight * k, y = bottomY - dh;
-    if (y > sceneCanvas.height) return;
-    const centre = (left + FRAME_W * scale / 2) * devicePixelRatio;   // scene canvas is in device pixels
-    scene.imageSmoothingEnabled = true;
-    // Right side: start with a mirrored copy so its right edge meets the picture's right edge.
-    // Each side starts 2 device pixels under the column's edge, so no hairline shows between them.
-    for (let i = 0, x = centre + widthOnScreen / 2 - 2; x < sceneCanvas.width; i++, x += dw) drawSlice(img, sx, sw, x, y, dw, dh, i % 2 === 0);
-    // Left side: start with a mirrored copy so the trees meet the tree at the picture's left edge.
-    for (let i = 0, x = centre - widthOnScreen / 2 - dw + 2; x + dw > 0; i++, x -= dw) drawSlice(img, sx, sw, x, y, dw, dh, i % 2 === 0);
-  }
-  function drawSlice(img, sx, sw, x, y, dw, dh, mirrored) {
-    if (!mirrored) { scene.drawImage(img, sx, 0, sw, img.naturalHeight, x, y, dw, dh); return; }
-    scene.save(); scene.translate(x + dw, y); scene.scale(-1, 1);
-    scene.drawImage(img, sx, 0, sw, img.naturalHeight, 0, 0, dw, dh);
-    scene.restore();
-  }
-
-  function drawHomeScene() {
-    const g = scene.createLinearGradient(0, 0, 0, sceneCanvas.height);
-    g.addColorStop(0, '#FEC98A'); g.addColorStop(1, '#FDE5A6');
-    scene.fillStyle = g; scene.fillRect(0, 0, sceneCanvas.width, sceneCanvas.height);
-    const farmW = 403 * scale * devicePixelRatio;                // the home farm is 403 px wide in the frame
-    drawFarmSides(homeFarm, farmW, (top + FRAME_H * scale) * devicePixelRatio);
-  }
-
-  // Called by the play frame every frame: sky colour, and where the farm sits as the camera climbs.
-  let lastKey = '';
-  window.__kioskScene = (game, canvas) => {
-    const sky = frame.contentWindow.__kioskSky ? frame.contentWindow.__kioskSky(game) : '#FDE9AA';
-    const rect = canvas.getBoundingClientRect();                // in frame pixels
-    const virtualW = 201, virtualH = canvas.height / canvas.width * virtualW;
-    const groundBottom = Math.round(game.groundY - game.camY) + 19;  // GROUND.height in config.js
-    const bottomFrame = rect.top + groundBottom * rect.height / virtualH;
-    const key = sky + '|' + Math.round(bottomFrame) + '|' + sceneCanvas.width;
-    if (key === lastKey) return;
-    lastKey = key;
-    scene.fillStyle = sky; scene.fillRect(0, 0, sceneCanvas.width, sceneCanvas.height);
-    const d = devicePixelRatio;
-    drawFarmSides(gameFarm, rect.width * scale * d, (top + bottomFrame * scale) * d);
-  };
+  let scale = 1;
 
   function layout() {
-    scale = Math.min(innerHeight / FRAME_H, innerWidth / FRAME_W);
-    left = Math.round((innerWidth - FRAME_W * scale) / 2);
-    top = Math.round((innerHeight - FRAME_H * scale) / 2);
+    // Whole-pixel width, so the frame's side edges land exactly on pixels (no hairlines).
+    scale = Math.floor(Math.min(innerHeight / FRAME_H, innerWidth / FRAME_W) * FRAME_W) / FRAME_W;
+    const left = Math.round((innerWidth - FRAME_W * scale) / 2);
+    const top = Math.round((innerHeight - FRAME_H * scale) / 2);
     frame.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
-    sceneCanvas.width = Math.round(innerWidth * devicePixelRatio);
-    sceneCanvas.height = Math.round(innerHeight * devicePixelRatio);
-    lastKey = '';
-    if (mode === 'home') drawHomeScene();
     const w = frame.contentWindow;
     if (w && w.KIOSK_SCALE !== scale) { w.KIOSK_SCALE = scale; w.dispatchEvent(new w.Event('resize')); }
   }
@@ -3525,11 +3454,9 @@ window.__kioskStart = (mode) => __require(mode === 'play' ? 'main' : 'home');
   // Load a screen ('home' or 'play') into the frame, like opening a page.
   window.__kioskGo = (next) => {
     mode = next;
-    lastKey = '';
     const html = document.getElementById('page-' + next).innerHTML.replace('/*__KIOSK_BUNDLE__*/', () => bundle);
     frame.srcdoc = '<!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.KIOSK_SCALE=' + scale +
       ';<\/script>' + html;
-    if (next === 'home') drawHomeScene();
   };
   frame.addEventListener('load', () => { try { frame.contentWindow.focus(); } catch (e) {} });
 
@@ -3542,7 +3469,7 @@ window.__kioskStart = (mode) => __require(mode === 'play' ? 'main' : 'home');
       if (e.key.startsWith('Arrow') || e.key === ' ' || e.key === 'Enter' || e.key === 'Backspace') e.preventDefault();
     });
   }
-  // While playing, tapping or clicking the scenery on either side steers too (left half / right half).
+  // While playing, tapping or clicking either side of the game steers too (left half / right half).
   for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
     window.addEventListener(type, (e) => {
       if (mode !== 'play') return;
@@ -3555,7 +3482,6 @@ window.__kioskStart = (mode) => __require(mode === 'play' ? 'main' : 'home');
   }
   window.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  homeFarm.addEventListener('load', () => { if (mode === 'home') drawHomeScene(); });
   addEventListener('resize', layout);
   layout();
   __kioskGo('home');

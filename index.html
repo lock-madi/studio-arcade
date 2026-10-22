@@ -319,6 +319,39 @@
   }
   .help-pop h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 8px; color: #55525e; }
   .help-pop p { margin: 0; font-size: 17px; line-height: 1.45; font-weight: 500; white-space: pre-line; }
+  .help-pop .save-note {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(11,11,15,0.12);
+    font-size: 14px; font-weight: 600; color: #55525e;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .help-pop .save-note::before { content: "!"; flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--hot); color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; margin-top: 1px; }
+
+  /* Exit confirmation */
+  .confirm {
+    position: absolute; inset: 0; z-index: 5;
+    display: grid; place-items: center;
+    background: rgba(0,0,0,0.62);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: 20px;
+  }
+  .confirm[hidden] { display: none; }
+  .confirm-card {
+    width: min(460px, 100%);
+    background: var(--ink); color: var(--bg);
+    border-radius: 18px; padding: 26px 26px 22px;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.9);
+    animation: pop 160ms cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes pop { from { transform: scale(0.96); opacity: 0; } }
+  .confirm-card h2 {
+    font-family: var(--display); font-weight: 900; font-size: 30px; letter-spacing: -0.03em;
+    line-height: 1; margin: 0 0 10px;
+  }
+  .confirm-card p { margin: 0 0 22px; font-size: 17px; line-height: 1.45; font-weight: 500; color: #3a3843; }
+  .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .confirm-actions .btn { justify-content: center; color: var(--bg); border-color: var(--bg); }
+  .confirm-actions .btn-exit { color: var(--accent-ink); background: var(--accent); border-color: var(--bg); }
+  .confirm-hint { margin: 14px 0 0; text-align: center; font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #6d6a78; }
 
   .stage { position: relative; background: #000; }
   .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; }
@@ -388,9 +421,22 @@
     <div class="help-pop" id="help-pop" role="tooltip">
       <h2>Controls / How to play</h2>
       <p id="help-text"></p>
+      <p class="save-note" id="save-note">Progress isn't saved. Leaving the game starts it over for the next player.</p>
     </div>
   </div>
-  <div class="stage" id="stage"></div>
+  <div class="stage" id="stage">
+    <div class="confirm" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text" hidden>
+      <div class="confirm-card">
+        <h2 id="confirm-title">Leave this game?</h2>
+        <p id="confirm-text">Your progress isn't saved, so the game starts over next time.</p>
+        <div class="confirm-actions">
+          <button class="btn" id="confirm-stay" type="button">Keep playing</button>
+          <button class="btn btn-exit" id="confirm-leave" type="button">Exit to Arcade</button>
+        </div>
+        <p class="confirm-hint" id="confirm-hint">Press Esc again to exit</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="idle-toast" id="idle-toast" role="status"></div>
@@ -546,6 +592,8 @@ const CONFIG = {
   tagline: "Senior Interaction Design Showcase",
   idleMinutes: 3,                              // auto-return to menu after this much inactivity
   idleWarningSeconds: 15,                      // countdown shown before auto-exit (0 = none)
+  confirmExit: true,                           // ask "Leave this game?" before exiting (false = exit at once)
+  showSaveNote: true,                          // "Progress isn't saved" line in the How to Play box
   filterByDevice: true,                        // false = ignore "devices" and show every game
   showOtherDeviceNote: true,                   // "+2 more games on other devices in the room"
   // Badge text for each game's "designedFor". Edit the words freely, e.g. tablet: "iOS".
@@ -784,6 +832,7 @@ const CONFIG = {
     hideToast();
     setHelp(false);
     clearTimeout(helpTimer);
+    hideConfirm(false);
 
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden", "true");
@@ -824,14 +873,39 @@ const CONFIG = {
   overlay.addEventListener("pointerdown", (e) => {
     if (!helpPop.contains(e.target) && !helpBtn.contains(e.target)) setHelp(false);
   });
-  $("exit-btn").addEventListener("click", () => closeGame("exit"));
+
+  /* ---------- Exit confirmation ---------- */
+  const confirmBox = $("confirm");
+  if (!CONFIG.showSaveNote) $("save-note").hidden = true;
+  if (isTouchDevice) $("confirm-hint").hidden = true;
+  function confirmOpen() { return !confirmBox.hidden; }
+  function showConfirm() {
+    setHelp(false);
+    clearTimeout(helpTimer);
+    confirmBox.hidden = false;
+    $("confirm-stay").focus();
+  }
+  function hideConfirm(refocusGame) {
+    confirmBox.hidden = true;
+    if (refocusGame && frame) frame.focus();
+  }
+  // Exit button / Esc: ask first; a second Esc (or "Exit to Arcade") leaves.
+  function requestExit(reason) {
+    if (!current) return;
+    if (!CONFIG.confirmExit || confirmOpen()) { closeGame(reason); return; }
+    showConfirm();
+  }
+  $("exit-btn").addEventListener("click", () => requestExit("exit"));
+  $("confirm-leave").addEventListener("click", () => closeGame("exit"));
+  $("confirm-stay").addEventListener("click", () => hideConfirm(true));
+  confirmBox.addEventListener("pointerdown", (e) => { if (e.target === confirmBox) hideConfirm(true); });
 
   /* ---------- Keyboard ---------- */
   function onKeydown(e) {
     if (e.key === "Escape" && current) {
       e.preventDefault();
-      if (helpPop.classList.contains("show")) setHelp(false);
-      closeGame("escape");
+      e.stopPropagation();
+      requestExit("escape");
     }
   }
   document.addEventListener("keydown", onKeydown);
